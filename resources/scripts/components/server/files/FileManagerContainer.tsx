@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { httpErrorToHuman } from '@/api/http';
 import { CSSTransition } from 'react-transition-group';
 import Spinner from '@/components/elements/Spinner';
@@ -25,8 +25,21 @@ import { hashToPath, cleanDirectoryPath } from '@/helpers';
 import style from './style.module.css';
 import { Alert } from '@/components/elements/alert';
 import { findPluginVersionConflicts } from '@/lib/pluginVersionConflicts';
+import PluginConflictScrollMarkers from '@/components/server/files/PluginConflictScrollMarkers';
+import Select from '@/components/elements/Select';
 
 const FILE_DISPLAY_LIMIT = 400;
+
+type SortMode = 'name_asc' | 'name_desc' | 'modified_desc' | 'size_desc';
+
+const SORT_MODES: SortMode[] = ['name_asc', 'name_desc', 'modified_desc', 'size_desc'];
+
+const isSortMode = (value: unknown): value is SortMode => SORT_MODES.includes(value as SortMode);
+
+const SORT_STORAGE_KEY = 'pterodactyl:files:sort';
+const DEFAULT_SORT_MODE: SortMode = 'name_asc';
+
+const isPluginsDirectory = (directory: string): boolean => cleanDirectoryPath(directory) === '/plugins';
 
 const isLogsDirectory = (directory: string): boolean => {
     const path = cleanDirectoryPath(directory);
@@ -34,20 +47,30 @@ const isLogsDirectory = (directory: string): boolean => {
     return path === '/logs' || path.startsWith('/logs/');
 };
 
-const isPluginsDirectory = (directory: string): boolean => cleanDirectoryPath(directory) === '/plugins';
+// Places directories before files while keeping the ordering produced by the active sort mode.
+const directoriesFirst = (a: FileObject, b: FileObject): number => (a.isFile === b.isFile ? 0 : a.isFile ? 1 : -1);
 
-const sortFiles = (files: FileObject[], directory: string): FileObject[] => {
-    if (isLogsDirectory(directory)) {
-        return [...files]
-            .sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime())
-            .slice(0, FILE_DISPLAY_LIMIT)
-            .filter((file, index, sorted) => index === 0 || file.name !== sorted[index - 1].name);
+const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): FileObject[] => {
+    const sortedFiles = [...files].slice(0, FILE_DISPLAY_LIMIT);
+
+    // The logs directory is always presented newest-first regardless of the selected sort mode.
+    const effectiveSortMode: SortMode = isLogsDirectory(directory) ? 'modified_desc' : sortMode;
+
+    switch (effectiveSortMode) {
+        case 'name_desc':
+            sortedFiles.sort((a, b) => b.name.localeCompare(a.name)).sort(directoriesFirst);
+            break;
+        case 'modified_desc':
+            sortedFiles.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+            break;
+        case 'size_desc':
+            sortedFiles.sort((a, b) => b.size - a.size).sort(directoriesFirst);
+            break;
+        case 'name_asc':
+        default:
+            sortedFiles.sort((a, b) => a.name.localeCompare(b.name)).sort(directoriesFirst);
+            break;
     }
-
-    const sortedFiles: FileObject[] = files
-        .slice(0, FILE_DISPLAY_LIMIT)
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .sort((a, b) => (a.isFile === b.isFile ? 0 : a.isFile ? 1 : -1));
 
     return sortedFiles.filter((file, index) => index === 0 || file.name !== sortedFiles[index - 1].name);
 };
@@ -62,6 +85,19 @@ export default () => {
 
     const setSelectedFiles = ServerContext.useStoreActions((actions) => actions.files.setSelectedFiles);
     const selectedFilesLength = ServerContext.useStoreState((state) => state.files.selectedFiles.length);
+
+    const [sortMode, setSortMode] = useState<SortMode>(() => {
+        const stored = localStorage.getItem(SORT_STORAGE_KEY);
+
+        return isSortMode(stored) ? stored : DEFAULT_SORT_MODE;
+    });
+
+    const onSortModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.currentTarget.value as SortMode;
+
+        setSortMode(value);
+        localStorage.setItem(SORT_STORAGE_KEY, value);
+    };
 
     useEffect(() => {
         clearFlashes('files');
@@ -83,13 +119,22 @@ export default () => {
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
-    const sortedFiles = files ? sortFiles(files, directory) : [];
+    const sortedFiles = files ? sortFiles(files, directory, sortMode) : [];
     const pluginVersionConflicts = files && isPluginsDirectory(directory) ? findPluginVersionConflicts(files) : [];
     const pluginVersionConflictFiles = new Set<string>();
 
     pluginVersionConflicts.forEach((conflict) => {
         conflict.files.forEach((file) => pluginVersionConflictFiles.add(file));
     });
+
+    // Map each duplicate to its relative position in the list so it can be marked on the scroll rail.
+    const pluginConflictMarkers = sortedFiles
+        .map((file, index) => ({ name: file.name, index }))
+        .filter((entry) => pluginVersionConflictFiles.has(entry.name))
+        .map((entry) => ({
+            name: entry.name,
+            ratio: sortedFiles.length > 1 ? entry.index / (sortedFiles.length - 1) : 0,
+        }));
 
     if (error) {
         return <ServerError message={httpErrorToHuman(error)} onRetry={() => mutate()} />;
@@ -99,7 +144,7 @@ export default () => {
         <ServerContentBlock title={'File Manager'} showFlashKey={'files'}>
             <FilesSubNavigation />
             <ErrorBoundary>
-                <div className={'flex flex-wrap-reverse md:flex-nowrap mb-4'}>
+                <div css={tw`flex flex-wrap-reverse md:flex-nowrap items-center mb-4`}>
                     <FileManagerBreadcrumbs
                         renderLeft={
                             <FileActionCheckbox
@@ -110,16 +155,39 @@ export default () => {
                             />
                         }
                     />
-                    <Can action={'file.create'}>
-                        <div className={style.manager_actions}>
-                            <FileManagerStatus />
-                            <NewDirectoryButton />
-                            <UploadButton />
-                            <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
-                                <Button>New File</Button>
-                            </NavLink>
+                    <div
+                        css={tw`flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:flex-1 md:justify-end mt-4 md:mt-0`}
+                    >
+                        <div css={tw`flex items-center flex-shrink-0`}>
+                            <label
+                                htmlFor={'sort-files'}
+                                css={tw`text-xs font-medium tracking-wide uppercase text-neutral-400 mr-2 whitespace-nowrap`}
+                            >
+                                Sort by
+                            </label>
+                            <Select
+                                id={'sort-files'}
+                                value={sortMode}
+                                onChange={onSortModeChange}
+                                css={tw`w-full sm:w-auto py-2`}
+                            >
+                                <option value={'name_asc'}>Name (A–Z)</option>
+                                <option value={'name_desc'}>Name (Z–A)</option>
+                                <option value={'modified_desc'}>Last modified</option>
+                                <option value={'size_desc'}>Size (largest first)</option>
+                            </Select>
                         </div>
-                    </Can>
+                        <Can action={'file.create'}>
+                            <div className={style.manager_actions}>
+                                <FileManagerStatus />
+                                <NewDirectoryButton />
+                                <UploadButton />
+                                <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
+                                    <Button>New File</Button>
+                                </NavLink>
+                            </div>
+                        </Can>
+                    </div>
                 </div>
             </ErrorBoundary>
             {!files ? (
@@ -131,6 +199,7 @@ export default () => {
                     ) : (
                         <CSSTransition classNames={'fade'} timeout={150} appear in>
                             <div>
+                                <PluginConflictScrollMarkers markers={pluginConflictMarkers} />
                                 {pluginVersionConflicts.length > 0 && (
                                     <Alert type={'danger'} className={'mb-4'}>
                                         <span className={'text-sm'}>Possible duplicate plugin versions detected.</span>

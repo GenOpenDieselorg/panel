@@ -133,6 +133,12 @@ return [
         'max_edit_size' => env('PTERODACTYL_FILES_MAX_EDIT_SIZE', 1024 * 1024 * 4),
     ],
 
+    'node_monitor' => [
+        // SSH settings used to read the real disk size of each node's machine (df).
+        'ssh_user' => env('NODE_MONITOR_SSH_USER', 'root'),
+        'ssh_timeout' => (int) env('NODE_MONITOR_SSH_TIMEOUT', 10),
+    ],
+
     'file_search' => [
         'max_file_size' => (int) env('PTERODACTYL_FILE_SEARCH_MAX_SIZE', 524288),
         'max_files_per_scan' => (int) env('PTERODACTYL_FILE_SEARCH_MAX_FILES', 500),

@@ -12,7 +12,13 @@ import { Server } from '@/api/server/getServer';
 import DashboardToolbar from '@/components/dashboard/DashboardToolbar';
 import DashboardServerList from '@/components/dashboard/DashboardServerList';
 import useDashboardLayout from '@/components/dashboard/useDashboardLayout';
-import { createDashboardSection, DashboardSortMode, syncLayoutWithServers } from '@/lib/dashboardLayout';
+import {
+    createDashboardSection,
+    DashboardSortMode,
+    getPluginTrackingExcludedUuids,
+    syncLayoutWithServers,
+} from '@/lib/dashboardLayout';
+import PluginConflictScrollMarkers from '@/components/dashboard/PluginConflictScrollMarkers';
 import loadDirectory from '@/api/server/files/loadDirectory';
 import { findPluginVersionConflicts } from '@/lib/pluginVersionConflicts';
 import { Alert } from '@/components/elements/alert';
@@ -56,10 +62,17 @@ export default () => {
         if (!error) clearFlashes('dashboard');
     }, [error]);
 
+    // Servers excluded from plugin tracking via the organizer toggles. The joined-string
+    // key keeps the scan effect from re-running on every drag while organizing.
+    const pluginTrackingExcludedUuids = getPluginTrackingExcludedUuids(servers ?? [], layout);
+    const pluginTrackingExcludedKey = [...pluginTrackingExcludedUuids].sort().join(',');
+
     useEffect(() => {
         let cancelled = false;
 
-        if (!servers || servers.length === 0) {
+        const trackedServers = (servers ?? []).filter((server) => !pluginTrackingExcludedUuids.has(server.uuid));
+
+        if (trackedServers.length === 0) {
             setPluginVersionConflictServers([]);
 
             return;
@@ -69,8 +82,8 @@ export default () => {
         const conflicts: Server[] = [];
 
         const checkNextServer = async (): Promise<void> => {
-            while (!cancelled && nextServerIndex < servers.length) {
-                const server = servers[nextServerIndex];
+            while (!cancelled && nextServerIndex < trackedServers.length) {
+                const server = trackedServers[nextServerIndex];
                 nextServerIndex += 1;
 
                 if (await serverHasPluginVersionConflict(server)) {
@@ -82,7 +95,9 @@ export default () => {
         setPluginVersionConflictServers([]);
 
         Promise.all(
-            Array.from({ length: Math.min(PLUGIN_CONFLICT_CHECK_CONCURRENCY, servers.length) }, () => checkNextServer())
+            Array.from({ length: Math.min(PLUGIN_CONFLICT_CHECK_CONCURRENCY, trackedServers.length) }, () =>
+                checkNextServer()
+            )
         ).then(() => {
             if (!cancelled) {
                 setPluginVersionConflictServers(conflicts);
@@ -92,7 +107,7 @@ export default () => {
         return () => {
             cancelled = true;
         };
-    }, [servers]);
+    }, [servers, pluginTrackingExcludedKey]);
 
     const scrollToPluginVersionConflictServer = (serverUuid = pluginVersionConflictServers[0]?.uuid) => {
         if (!serverUuid) {
@@ -125,6 +140,15 @@ export default () => {
                         onChange={() => setShowOnlyAdmin((s) => !s)}
                     />
                 </div>
+            )}
+
+            {!isLoading && servers && pluginVersionConflictServers.length > 0 && (
+                <PluginConflictScrollMarkers
+                    servers={servers}
+                    conflictServerUuids={pluginVersionConflictServerUuids}
+                    recomputeKey={layout}
+                    onSelect={scrollToPluginVersionConflictServer}
+                />
             )}
 
             {pluginVersionConflictServers.length > 0 && (
@@ -162,7 +186,7 @@ export default () => {
                                     if (!saved) {
                                         clearAndAddHttpError({
                                             key: 'dashboard',
-                                            error: new Error('Nie udało się zapisać organizacji serwerów.'),
+                                            error: new Error('Failed to save the server layout.'),
                                         });
                                     } else {
                                         clearFlashes('dashboard');
@@ -173,12 +197,16 @@ export default () => {
                             return !current;
                         });
                     }}
-                    onCreateSection={(name) =>
+                    onCreateSection={(name) => {
                         setLayout((current) => ({
                             ...current,
                             sections: [...current.sections, createDashboardSection(name)],
-                        }))
-                    }
+                        }));
+
+                        // A fresh section holds no servers yet, and empty sections are only
+                        // rendered while organizing — switch into it so the section is visible.
+                        setIsOrganizing(true);
+                    }}
                 />
             )}
 

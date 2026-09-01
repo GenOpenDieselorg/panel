@@ -98,16 +98,15 @@
             return mib.toLocaleString() + ' MiB';
         }
 
-        function cpuProgressBar(absolute, label) {
-            var barPercent = Math.min(100, Math.max(0, absolute));
-            var css = barPercent <= 60 ? 'progress-bar-success' : (barPercent <= 85 ? 'progress-bar-warning' : 'progress-bar-danger');
-            return '<div style="min-width:140px">' +
-                '<small>' + label + '</small>' +
-                '<div class="progress progress-xs" style="margin-bottom:0">' +
-                '<div class="progress-bar ' + css + '" style="width:' + barPercent.toFixed(1) + '%"></div>' +
-                '</div>' +
-                '<small class="text-muted">' + absolute.toFixed(1) + '%</small>' +
-                '</div>';
+        // cpu_absolute is Docker-style (100% = one thread), so the bar is drawn
+        // against the machine's total capacity (absolute / threads).
+        function cpuTotalPercent(live, system) {
+            if (typeof live.cpu_percent === 'number') {
+                return live.cpu_percent;
+            }
+
+            var threads = system.cpu_threads || 0;
+            return threads > 0 ? Math.min(100, (live.cpu_absolute || 0) / threads) : (live.cpu_absolute || 0);
         }
 
         function progressBar(percent, label) {
@@ -138,7 +137,7 @@
                 case 'live_memory_bytes':
                     return node.online ? (node.live.memory_bytes || 0) : -1;
                 case 'live_cpu_absolute':
-                    return node.online ? (node.live.cpu_absolute || 0) : -1;
+                    return node.online ? cpuTotalPercent(node.live, node.system) : -1;
                 case 'live_disk_bytes':
                     return node.online ? (node.live.disk_bytes || 0) : -1;
                 case 'allocated_memory_mib':
@@ -208,10 +207,14 @@
             sortNodes(data.nodes).forEach(function (node) {
                 var maintenance = node.maintenance_mode ? '<span class="label label-warning"><i class="fa fa-wrench"></i></span> ' : '';
                 var ramLabel = formatBytes(node.live.memory_bytes) + ' / ' + formatBytes(node.system.memory_bytes);
-                var diskLabel = formatBytes(node.live.disk_bytes) + ' / ' + formatMib(node.allocated.disk_max_mib);
+                var diskTotalLabel = node.system.disk_total_bytes
+                    ? formatBytes(node.system.disk_total_bytes)
+                    : formatMib(node.allocated.disk_max_mib);
+                var diskLabel = formatBytes(node.live.disk_bytes) + ' / ' + diskTotalLabel;
                 var allocRamLabel = formatMib(node.allocated.memory_mib) + ' / ' + formatMib(node.allocated.memory_max_mib);
                 var allocDiskLabel = formatMib(node.allocated.disk_mib) + ' / ' + formatMib(node.allocated.disk_max_mib);
-                var cpuLabel = node.live.cpu_absolute.toFixed(1) + '% (' + (node.system.cpu_threads || 0) + ' wątków)';
+                var cpuPercent = cpuTotalPercent(node.live, node.system);
+                var cpuLabel = node.live.cpu_absolute.toFixed(1) + '% (' + (node.system.cpu_threads || 0) + ' wątków · ' + cpuPercent.toFixed(1) + '% całości)';
 
                 var row = '<tr>' +
                     '<td class="text-center">' + statusIcon(node.online) + '</td>' +
@@ -219,7 +222,7 @@
                     '<br><small class="text-muted">' + $('<div>').text(node.location).html() +
                     (node.wings_version ? ' · Wings ' + node.wings_version : '') + '</small></td>' +
                     '<td>' + (node.online ? progressBar(node.live.memory_percent, ramLabel) : '<span class="text-muted">—</span>') + '</td>' +
-                    '<td>' + (node.online ? cpuProgressBar(node.live.cpu_absolute, cpuLabel) : '<span class="text-muted">—</span>') + '</td>' +
+                    '<td>' + (node.online ? progressBar(cpuPercent, cpuLabel) : '<span class="text-muted">—</span>') + '</td>' +
                     '<td>' + (node.online ? progressBar(node.live.disk_percent, diskLabel) : '<span class="text-muted">—</span>') + '</td>' +
                     '<td>' + progressBar(node.allocated.memory_percent, allocRamLabel) + '</td>' +
                     '<td>' + progressBar(node.allocated.disk_percent, allocDiskLabel) + '</td>' +

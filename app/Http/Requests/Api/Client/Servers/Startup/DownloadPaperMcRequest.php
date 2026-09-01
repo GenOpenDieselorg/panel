@@ -15,7 +15,9 @@ class DownloadPaperMcRequest extends ClientApiRequest
     public function rules(): array
     {
         return [
-            'version' => 'required|string|max:20|regex:/^\d+\.\d+(?:\.\d+)?(?:-pre\d+)?$/',
+            // Array syntax is required here: the pattern contains a pipe, which
+            // Laravel would otherwise treat as a rule separator.
+            'version' => ['required', 'string', 'max:20', 'regex:/^\d+\.\d+(?:\.\d+)?(?:-(?:pre|rc)-?\d+)?$/'],
         ];
     }
 }

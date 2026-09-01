@@ -7,12 +7,14 @@ export interface DashboardSection {
     id: string;
     name: string;
     serverUuids: string[];
+    trackPlugins?: boolean;
 }
 
 export interface DashboardLayout {
     sortMode: DashboardSortMode;
     sections: DashboardSection[];
     unsectionedOrder: string[];
+    trackUnsectionedPlugins?: boolean;
 }
 
 export type DashboardLayoutScope = 'own' | 'admin';
@@ -26,6 +28,7 @@ export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
     sortMode: 'name_asc',
     sections: [],
     unsectionedOrder: [],
+    trackUnsectionedPlugins: true,
 };
 
 export const DEFAULT_SCOPED_DASHBOARD_LAYOUTS: ScopedDashboardLayouts = {
@@ -33,11 +36,13 @@ export const DEFAULT_SCOPED_DASHBOARD_LAYOUTS: ScopedDashboardLayouts = {
         sortMode: DEFAULT_DASHBOARD_LAYOUT.sortMode,
         sections: [],
         unsectionedOrder: [],
+        trackUnsectionedPlugins: true,
     },
     admin: {
         sortMode: DEFAULT_DASHBOARD_LAYOUT.sortMode,
         sections: [],
         unsectionedOrder: [],
+        trackUnsectionedPlugins: true,
     },
 };
 
@@ -48,6 +53,7 @@ export const cloneDashboardLayout = (layout: DashboardLayout): DashboardLayout =
         serverUuids: [...section.serverUuids],
     })),
     unsectionedOrder: [...layout.unsectionedOrder],
+    trackUnsectionedPlugins: layout.trackUnsectionedPlugins !== false,
 });
 
 export const cloneScopedDashboardLayouts = (layouts: ScopedDashboardLayouts): ScopedDashboardLayouts => ({
@@ -289,3 +295,49 @@ export const reorderUnsectionedServers = (layout: DashboardLayout, serverUuids: 
     ...layout,
     unsectionedOrder: serverUuids,
 });
+
+export const setSectionPluginTracking = (
+    layout: DashboardLayout,
+    sectionId: string,
+    enabled: boolean
+): DashboardLayout => ({
+    ...layout,
+    sections: layout.sections.map((section) =>
+        section.id === sectionId ? { ...section, trackPlugins: enabled } : section
+    ),
+});
+
+export const setUnsectionedPluginTracking = (layout: DashboardLayout, enabled: boolean): DashboardLayout => ({
+    ...layout,
+    trackUnsectionedPlugins: enabled,
+});
+
+/*
+ * Returns the uuids of servers excluded from plugin duplicate tracking: servers in
+ * sections with tracking switched off, or unsectioned servers when the unsectioned
+ * group has tracking switched off.
+ */
+export const getPluginTrackingExcludedUuids = (servers: Server[], layout: DashboardLayout): Set<string> => {
+    const excluded = new Set<string>();
+    const sectioned = new Set<string>();
+
+    for (const section of layout.sections) {
+        for (const uuid of section.serverUuids) {
+            sectioned.add(uuid);
+
+            if (section.trackPlugins === false) {
+                excluded.add(uuid);
+            }
+        }
+    }
+
+    if (layout.trackUnsectionedPlugins === false) {
+        for (const server of servers) {
+            if (!sectioned.has(server.uuid)) {
+                excluded.add(server.uuid);
+            }
+        }
+    }
+
+    return excluded;
+};

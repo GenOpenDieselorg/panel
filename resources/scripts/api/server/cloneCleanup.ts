@@ -5,9 +5,13 @@ export interface ClonePlugin {
     type: 'file' | 'directory';
 }
 
+export type CleanupMode = 'remove' | 'keep';
+
 export interface CloneCleanupPluginsResponse {
     plugins: ClonePlugin[];
     template: string;
+    mode: CleanupMode;
+    selection: string[];
 }
 
 export const getCloneCleanupPlugins = (uuid: string): Promise<CloneCleanupPluginsResponse> => {
@@ -17,15 +21,22 @@ export const getCloneCleanupPlugins = (uuid: string): Promise<CloneCleanupPlugin
                 resolve({
                     plugins: data.plugins || [],
                     template: data.template || '',
+                    mode: data.mode === 'keep' ? 'keep' : 'remove',
+                    selection: data.selection || [],
                 })
             )
             .catch(reject);
     });
 };
 
-export const applyCloneCleanup = (uuid: string, plugins: string[], patterns?: string[]): Promise<void> => {
+export const applyCloneCleanup = (
+    uuid: string,
+    mode: CleanupMode,
+    plugins: string[],
+    patterns?: string[]
+): Promise<void> => {
     return new Promise((resolve, reject) => {
-        http.post(`/api/client/servers/${uuid}/clone-cleanup`, { plugins, patterns })
+        http.post(`/api/client/servers/${uuid}/clone-cleanup`, { mode, plugins, patterns })
             .then(() => resolve())
             .catch(reject);
     });

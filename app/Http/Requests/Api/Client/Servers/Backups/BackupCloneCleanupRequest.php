@@ -15,6 +15,7 @@ class BackupCloneCleanupRequest extends ClientApiRequest
     public function rules(): array
     {
         return [
+            'mode' => 'sometimes|string|in:remove,keep',
             'plugins' => 'present|array|max:500',
             'plugins.*' => [
                 'string',

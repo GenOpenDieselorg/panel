@@ -10,7 +10,10 @@ import {
     renameDashboardSection,
     reorderSectionServers,
     reorderUnsectionedServers,
+    setSectionPluginTracking,
+    setUnsectionedPluginTracking,
 } from '@/lib/dashboardLayout';
+import Switch from '@/components/elements/Switch';
 import { Button } from '@/components/elements/button/index';
 import Input from '@/components/elements/Input';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -53,16 +56,34 @@ const clearDragPayload = () => {
     dragPayloadRef.current = null;
 };
 
+const PluginTrackingToggle = ({ id, enabled, onToggle }: { id: string; enabled: boolean; onToggle: (enabled: boolean) => void }) => (
+    <div css={tw`flex items-center gap-2`}>
+        <span css={tw`text-xs uppercase text-neutral-400`}>Plugin tracking</span>
+        <Switch
+            key={`${id}-${enabled}`}
+            name={`plugin_tracking_${id}`}
+            defaultChecked={enabled}
+            onChange={(event) => onToggle(event.currentTarget.checked)}
+        />
+    </div>
+);
+
 const SectionHeader = ({
+    id,
     name,
     isOrganizing,
+    trackPlugins,
     onRename,
     onDelete,
+    onToggleTracking,
 }: {
+    id: string;
     name: string;
     isOrganizing: boolean;
+    trackPlugins: boolean;
     onRename: (name: string) => void;
     onDelete: () => void;
+    onToggleTracking: (enabled: boolean) => void;
 }) => {
     const [editing, setEditing] = useState(false);
     const [value, setValue] = useState(name);
@@ -102,14 +123,17 @@ const SectionHeader = ({
                 </h3>
             )}
             {isOrganizing && (
-                <Button
-                    type={'button'}
-                    variant={Button.Variants.Secondary}
-                    size={Button.Sizes.Small}
-                    onClick={onDelete}
-                >
-                    Usuń sekcję
-                </Button>
+                <div css={tw`flex items-center gap-3`}>
+                    <PluginTrackingToggle id={id} enabled={trackPlugins} onToggle={onToggleTracking} />
+                    <Button
+                        type={'button'}
+                        variant={Button.Variants.Secondary}
+                        size={Button.Sizes.Small}
+                        onClick={onDelete}
+                    >
+                        Delete section
+                    </Button>
+                </div>
             )}
         </div>
     );
@@ -251,7 +275,7 @@ const SectionDropArea = ({
                 <div
                     css={tw`rounded border border-dashed border-neutral-600 p-6 text-center text-sm text-neutral-500 pointer-events-none`}
                 >
-                    Przeciągnij serwery tutaj
+                    Drag servers here
                 </div>
             )}
         </div>
@@ -361,10 +385,15 @@ export default ({ servers, layout, isOrganizing, pluginVersionConflictServerUuid
             {organized.sections.map(({ section, servers: sectionServers }) => (
                 <section key={section.id}>
                     <SectionHeader
+                        id={section.id}
                         name={section.name}
                         isOrganizing={isOrganizing}
+                        trackPlugins={section.trackPlugins !== false}
                         onRename={(name) => onLayoutChange(renameDashboardSection(layout, section.id, name))}
                         onDelete={() => onLayoutChange(removeDashboardSection(layout, section.id))}
+                        onToggleTracking={(enabled) =>
+                            onLayoutChange(setSectionPluginTracking(layout, section.id, enabled))
+                        }
                     />
                     {renderServers(sectionServers, section.id)}
                 </section>
@@ -372,8 +401,21 @@ export default ({ servers, layout, isOrganizing, pluginVersionConflictServerUuid
 
             {(organized.unsectioned.length > 0 || organized.sections.length === 0) && (
                 <section>
-                    {organized.sections.length > 0 && (
-                        <h3 css={tw`mb-2 text-sm uppercase tracking-wide text-neutral-400`}>Pozostałe serwery</h3>
+                    {(organized.sections.length > 0 || isOrganizing) && (
+                        <div css={tw`mb-2 flex items-center justify-between gap-3`}>
+                            <h3 css={tw`text-sm uppercase tracking-wide text-neutral-400`}>
+                                {organized.sections.length > 0 ? 'Other servers' : 'Servers'}
+                            </h3>
+                            {isOrganizing && (
+                                <PluginTrackingToggle
+                                    id={'unsectioned'}
+                                    enabled={layout.trackUnsectionedPlugins !== false}
+                                    onToggle={(enabled) =>
+                                        onLayoutChange(setUnsectionedPluginTracking(layout, enabled))
+                                    }
+                                />
+                            )}
+                        </div>
                     )}
                     {renderServers(organized.unsectioned, null)}
                 </section>

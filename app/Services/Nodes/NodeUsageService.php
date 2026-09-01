@@ -168,6 +168,11 @@ class NodeUsageService
         $systemMemoryBytes = (int) Arr::get($system, 'system.memory_bytes', 0);
         $cpuThreads = (int) Arr::get($system, 'system.cpu_threads', 0);
 
+        // Real disk size of the machine as reported by df over SSH (p:node:sync-real-disk),
+        // falling back to the configured limit when it has not been collected yet.
+        $realDiskBytes = (int) ($node->real_disk_bytes ?? 0);
+        $diskCapacityBytes = $realDiskBytes > 0 ? $realDiskBytes : $diskLimit * 1024 * 1024;
+
         return [
             'id' => $node->id,
             'name' => $node->name,
@@ -180,6 +185,7 @@ class NodeUsageService
                 'os' => Arr::get($system, 'system.os'),
                 'memory_bytes' => $systemMemoryBytes,
                 'cpu_threads' => $cpuThreads,
+                'disk_total_bytes' => $realDiskBytes > 0 ? $realDiskBytes : null,
                 'containers_running' => (int) Arr::get($system, 'docker.containers.running', 0),
                 'containers_total' => (int) Arr::get($system, 'docker.containers.total', 0),
             ],
@@ -187,9 +193,10 @@ class NodeUsageService
                 'memory_bytes' => $liveMemory,
                 'memory_percent' => $systemMemoryBytes > 0 ? ($liveMemory / $systemMemoryBytes) * 100 : 0,
                 'disk_bytes' => $liveDisk,
-                'disk_percent' => $diskLimit > 0 ? ($liveDisk / ($diskLimit * 1024 * 1024)) * 100 : 0,
+                'disk_percent' => $diskCapacityBytes > 0 ? ($liveDisk / $diskCapacityBytes) * 100 : 0,
                 'cpu_absolute' => round($liveCpu, 2),
-                'cpu_percent' => min(100, $liveCpu),
+                // Share of the machine's total CPU capacity (cpu_absolute is 100% per thread).
+                'cpu_percent' => $cpuThreads > 0 ? round(min(100, $liveCpu / $cpuThreads), 2) : min(100, $liveCpu),
                 'running_servers' => $runningServers,
             ],
             'allocated' => [

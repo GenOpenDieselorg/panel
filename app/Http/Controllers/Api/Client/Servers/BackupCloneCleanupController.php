@@ -41,21 +41,39 @@ class BackupCloneCleanupController extends ClientApiController
 
         $this->assertAwaitingPlugins($server);
 
-        $plugins = $this->listPlugins($server);
+        $plugins = $this->listJarPlugins($server);
 
         $state = CreateServerFromBackupService::getCloneState($server->id);
         $template = is_array($state) && !empty($state['plugin_template'])
             ? $state['plugin_template']
             : $this->pluginTemplateService->get();
 
+        $names = array_column($plugins, 'name');
+
+        // The choice made while creating the server pre-fills the dialog, so the
+        // user only has to confirm it once the restore finishes.
+        $selection = collect(is_array($state) ? ($state['plugin_selection'] ?? []) : [])
+            ->filter(fn ($name) => is_string($name))
+            ->intersect($names)
+            ->values()
+            ->all();
+
         return new JsonResponse([
             'plugins' => $plugins,
             'template' => $template,
+            'mode' => is_array($state) && ($state['plugin_mode'] ?? null) === 'keep' ? 'keep' : 'remove',
+            'selection' => $selection,
         ]);
     }
 
     /**
-     * Deletes selected plugins and finalizes the clone cleanup process.
+     * Deletes plugins and finalizes the clone cleanup process.
+     *
+     * Two selection modes are supported:
+     *  - remove: the submitted plugins (plus pattern matches) are deleted;
+     *  - keep:   the submitted plugins are kept and every other jar is deleted.
+     *
+     * Only *.jar files are ever touched — directories inside /plugins are left alone.
      *
      * @throws \Pterodactyl\Exceptions\Http\Connection\DaemonConnectionException
      */
@@ -66,13 +84,27 @@ class BackupCloneCleanupController extends ClientApiController
             throw new NotFoundHttpException('No pending plugin cleanup was found for this server.');
         }
 
-        $plugins = $this->listPlugins($server);
-        $selected = collect($request->input('plugins', []))
-            ->filter(fn ($name) => is_string($name) && $this->isSafePluginName($name))
-            ->merge($this->pluginPatternMatcher->match($plugins, $request->input('patterns', [])))
-            ->unique()
-            ->values()
-            ->all();
+        $plugins = $this->listJarPlugins($server);
+        $names = array_column($plugins, 'name');
+
+        $submitted = collect($request->input('plugins', []))
+            ->filter(fn ($name) => is_string($name) && $this->isSafePluginName($name));
+
+        if ($request->input('mode') === 'keep') {
+            $kept = $submitted->map(fn (string $name) => strtolower($name))->all();
+
+            $selected = collect($names)
+                ->reject(fn (string $name) => in_array(strtolower($name), $kept, true))
+                ->values()
+                ->all();
+        } else {
+            $selected = $submitted
+                ->merge($this->pluginPatternMatcher->match($plugins, $request->input('patterns', [])))
+                ->unique()
+                ->intersect($names)
+                ->values()
+                ->all();
+        }
 
         if (!empty($selected)) {
             $this->fileRepository->setServer($server)->deleteFiles('/plugins', $selected);
@@ -123,6 +155,20 @@ class BackupCloneCleanupController extends ClientApiController
         usort($plugins, fn ($a, $b) => strcasecmp($a['name'], $b['name']));
 
         return $plugins;
+    }
+
+    /**
+     * Returns only the jar files inside /plugins. Directories and any other
+     * file type are dropped so they can never be selected for deletion.
+     *
+     * @return array<int, array{name: string, type: string}>
+     */
+    private function listJarPlugins(Server $server): array
+    {
+        return array_values(array_filter(
+            $this->listPlugins($server),
+            fn (array $plugin) => $plugin['type'] === 'file' && str_ends_with(strtolower($plugin['name']), '.jar'),
+        ));
     }
 
     private function isSafePluginName(string $name): bool

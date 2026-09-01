@@ -107,6 +107,7 @@ Route::group(['prefix' => 'users'], function () {
 Route::group(['prefix' => 'servers'], function () {
     Route::get('/', [Admin\Servers\ServerController::class, 'index'])->name('admin.servers');
     Route::get('/new', [Admin\Servers\CreateServerController::class, 'index'])->name('admin.servers.new');
+    Route::get('/statuses', [Admin\Servers\ServerStatusController::class, 'index'])->name('admin.servers.statuses');
     Route::get('/view/{server:id}', [Admin\Servers\ServerViewController::class, 'index'])->name('admin.servers.view');
 
     Route::group(['middleware' => [ServerInstalled::class]], function () {

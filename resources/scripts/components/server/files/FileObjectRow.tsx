@@ -45,6 +45,7 @@ const FileObjectRow = ({
     <div
         className={classNames(styles.file_row, { [styles.plugin_version_conflict]: hasPluginVersionConflict })}
         data-plugin-version-conflict={hasPluginVersionConflict ? 'true' : undefined}
+        data-file-name={file.name}
         key={file.name}
         onContextMenu={(e) => {
             e.preventDefault();

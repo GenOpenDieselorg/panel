@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 import tw from 'twin.macro';
 import styled from 'styled-components/macro';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSearch } from '@fortawesome/free-solid-svg-icons';
+import { faFolderOpen, faSearch } from '@fortawesome/free-solid-svg-icons';
+import FileSearchDirectoryDialog from '@/components/server/files/FileSearchDirectoryDialog';
 import ServerContentBlock from '@/components/elements/ServerContentBlock';
 import FilesSubNavigation from '@/components/server/files/FilesSubNavigation';
 import Input from '@/components/elements/Input';
@@ -69,6 +70,7 @@ export default () => {
 
     const [query, setQuery] = useState('');
     const [directory, setDirectory] = useState('/');
+    const [directoryDialogOpen, setDirectoryDialogOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState<FileSearchMatch[]>([]);
     const [meta, setMeta] = useState<FileSearchMeta | null>(null);
@@ -163,14 +165,26 @@ export default () => {
                         >
                             Katalog startowy
                         </label>
-                        <Input
-                            id={'file_search_directory'}
-                            value={directory}
-                            onChange={(e) => setDirectory(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !loading && handleSearch()}
-                            placeholder={'/'}
-                            disabled={loading}
-                        />
+                        <div css={tw`flex gap-2`}>
+                            <Input
+                                id={'file_search_directory'}
+                                value={directory}
+                                readOnly
+                                css={tw`cursor-pointer`}
+                                onClick={() => !loading && setDirectoryDialogOpen(true)}
+                                placeholder={'/'}
+                                disabled={loading}
+                            />
+                            <Button
+                                type={'button'}
+                                variant={Button.Variants.Secondary}
+                                onClick={() => setDirectoryDialogOpen(true)}
+                                disabled={loading}
+                            >
+                                <FontAwesomeIcon icon={faFolderOpen} css={tw`mr-2`} />
+                                Wybierz
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
@@ -179,6 +193,14 @@ export default () => {
                     {loading ? 'Szukam...' : 'Szukaj'}
                 </Button>
             </div>
+
+            <FileSearchDirectoryDialog
+                uuid={uuid}
+                open={directoryDialogOpen}
+                startPath={directory}
+                onClose={() => setDirectoryDialogOpen(false)}
+                onSelect={(path) => setDirectory(path)}
+            />
 
             {loading && progress && (
                 <div css={tw`bg-neutral-800 rounded p-4 mb-4`}>

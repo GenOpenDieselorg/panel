@@ -31,6 +31,9 @@ import http, { httpErrorToHuman } from '@/api/http';
 import { Dialog } from '@/components/elements/dialog';
 import { useStoreState } from '@/state/hooks';
 import { generateCloneServerName } from '@/lib/generateCloneServerName';
+import loadDirectory from '@/api/server/files/loadDirectory';
+import PluginSelector from '@/components/server/backups/PluginSelector';
+import { CleanupMode, ClonePlugin } from '@/api/server/cloneCleanup';
 
 interface Props {
     backup: ServerBackup;
@@ -49,10 +52,26 @@ export default ({ backup }: Props) => {
     const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
     const [cloneMemoryGiB, setCloneMemoryGiB] = useState(3);
     const [pluginTemplate, setPluginTemplate] = useState('');
+    const [pluginMode, setPluginMode] = useState<CleanupMode>('remove');
+    const [plugins, setPlugins] = useState<ClonePlugin[]>([]);
+    const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
+    const [loadingPlugins, setLoadingPlugins] = useState(false);
     const [paperVersions, setPaperVersions] = useState<string[]>([]);
     const [selectedPaperVersion, setSelectedPaperVersion] = useState('');
     const [loadingPaperVersions, setLoadingPaperVersions] = useState(false);
     const { clearFlashes, clearAndAddHttpError, addFlash } = useFlash();
+
+    const resetCreateServerState = () => {
+        setServerName('');
+        setSelectedNodeId(null);
+        setCloneMemoryGiB(3);
+        setPluginTemplate('');
+        setPluginMode('remove');
+        setPlugins([]);
+        setSelectedPlugins([]);
+        setPaperVersions([]);
+        setSelectedPaperVersion('');
+    };
 
     useEffect(() => {
         if (modal !== 'create-server') {
@@ -62,6 +81,21 @@ export default ({ backup }: Props) => {
         getCreateServerNodes(uuid)
             .then((data) => setPluginTemplate(data.plugin_template || ''))
             .catch((error) => console.error(error));
+
+        // The backup mirrors this server, so its /plugins directory is exactly
+        // what the new server will end up with.
+        setLoadingPlugins(true);
+        loadDirectory(uuid, '/plugins')
+            .then((files) =>
+                setPlugins(
+                    files
+                        .filter((file) => file.isFile && file.name.toLowerCase().endsWith('.jar'))
+                        .map((file) => ({ name: file.name, type: 'file' as const }))
+                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+                )
+            )
+            .catch((error) => console.error(error))
+            .then(() => setLoadingPlugins(false));
 
         setLoadingPaperVersions(true);
         getPaperVersions(uuid)
@@ -140,6 +174,16 @@ export default ({ backup }: Props) => {
             return;
         }
 
+        if (pluginMode === 'keep' && selectedPlugins.length === 0 && plugins.length > 0) {
+            clearFlashes('backups');
+            addFlash({
+                key: 'backups',
+                type: 'error',
+                message: 'Select at least one plugin to keep, or switch back to "Remove selected".',
+            });
+            return;
+        }
+
         setLoading(true);
         clearFlashes('backups');
         createServerFromBackup(
@@ -149,7 +193,9 @@ export default ({ backup }: Props) => {
             selectedNodeId,
             pluginTemplate,
             cloneMemoryGiB * 1024,
-            selectedPaperVersion || undefined
+            selectedPaperVersion || undefined,
+            pluginMode,
+            selectedPlugins
         )
             .then((server) => {
                 addFlash({
@@ -159,12 +205,7 @@ export default ({ backup }: Props) => {
                 });
                 window.open(`/server/${server.identifier}`, '_blank');
                 setModal('');
-                setServerName('');
-                setSelectedNodeId(null);
-                setCloneMemoryGiB(3);
-                setPluginTemplate('');
-                setPaperVersions([]);
-                setSelectedPaperVersion('');
+                resetCreateServerState();
             })
             .catch((error) => {
                 console.error(error);
@@ -238,12 +279,7 @@ export default ({ backup }: Props) => {
                 open={modal === 'create-server'}
                 onClose={() => {
                     setModal('');
-                    setServerName('');
-                    setSelectedNodeId(null);
-                    setCloneMemoryGiB(3);
-                    setPluginTemplate('');
-                    setPaperVersions([]);
-                    setSelectedPaperVersion('');
+                    resetCreateServerState();
                 }}
                 confirm={'Create Server'}
                 title={`Create Server from "${backup.name}"`}
@@ -251,8 +287,8 @@ export default ({ backup }: Props) => {
             >
                 <p>
                     A new server will be provisioned with the same disk and limits as this server, CPU set to 300%, and
-                    the selected RAM limit. The selected backup will be restored to the new instance. After restoration
-                    completes, matching plugins from the template below will be selected for removal.
+                    the selected RAM limit. The selected backup will be restored to the new instance, then the plugin
+                    choice below is applied.
                 </p>
                 <div css={tw`mt-4 -mb-2 bg-gray-700 p-3 rounded`}>
                     <div css={tw`flex items-center justify-between mb-2`}>
@@ -322,22 +358,20 @@ export default ({ backup }: Props) => {
                         placeholder={generateCloneServerName(sourceServerName)}
                     />
                 </p>
-                <p css={tw`mt-4 -mb-2 bg-gray-700 p-3 rounded`}>
-                    <label htmlFor={'clone_plugin_template'} css={tw`text-base block mb-2`}>
-                        Plugin Removal Template
-                    </label>
-                    <Input
-                        id={'clone_plugin_template'}
-                        value={pluginTemplate}
-                        onChange={(e) => setPluginTemplate(e.target.value)}
-                        placeholder={'luckperms*,litebans*,coreprotect*,goxy*'}
+                <div css={tw`mt-4 -mb-2 bg-gray-700 p-3 rounded`}>
+                    <label css={tw`text-base block mb-2`}>Plugins</label>
+                    <PluginSelector
+                        plugins={plugins}
+                        loading={loadingPlugins}
+                        mode={pluginMode}
+                        selected={selectedPlugins}
+                        onModeChange={(next) => {
+                            setPluginMode(next);
+                            setSelectedPlugins([]);
+                        }}
+                        onSelectedChange={setSelectedPlugins}
                     />
-                    <span css={tw`text-xs text-neutral-400 mt-2 block`}>
-                        Comma-separated plugin name patterns. Matching is case-insensitive and files only — e.g.{' '}
-                        <code css={tw`text-neutral-300`}>goxy*</code> matches{' '}
-                        <code css={tw`text-neutral-300`}>Goxy.jar</code>.
-                    </span>
-                </p>
+                </div>
             </Dialog.Confirm>
             <Dialog.Confirm
                 title={`Delete "${backup.name}"`}

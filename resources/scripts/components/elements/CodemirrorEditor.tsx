@@ -123,6 +123,7 @@ export interface Props {
     fetchContent: (callback: () => Promise<string>) => void;
     onContentSaved: () => void;
     onValidationChange?: (state: EditorValidationState) => void;
+    onContentChanged?: (content: string) => void;
 }
 
 const findModeByFilename = (filename: string) => {
@@ -162,6 +163,7 @@ export default ({
     onContentSaved,
     onModeChanged,
     onValidationChange,
+    onContentChanged,
 }: Props) => {
     const [editor, setEditor] = useState<CodeMirror.Editor>();
     const isDirtyRef = useRef(false);
@@ -283,6 +285,16 @@ export default ({
             onValidationChangeRef.current?.({ error: null, isDirty: false });
         }
     }, [editor, initialContent]);
+
+    useEffect(() => {
+        if (!editor || !onContentChanged) return;
+
+        const onChange = () => onContentChanged(editor.getValue());
+
+        editor.on('change', onChange);
+
+        return () => editor.off('change', onChange);
+    }, [editor, onContentChanged]);
 
     useEffect(() => {
         if (!editor) {

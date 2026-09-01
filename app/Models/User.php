@@ -3,6 +3,7 @@
 namespace Pterodactyl\Models;
 
 use Pterodactyl\Rules\Username;
+use Pterodactyl\Rules\UserEmail;
 use Pterodactyl\Facades\Activity;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rules\In;
@@ -191,6 +192,7 @@ class User extends Model implements
 
         $rules['language'][] = new In(array_keys((new self())->getAvailableLanguages()));
         $rules['username'][] = new Username();
+        $rules['email'][] = new UserEmail();
 
         return $rules;
     }

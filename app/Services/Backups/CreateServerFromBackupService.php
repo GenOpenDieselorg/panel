@@ -42,6 +42,8 @@ class CreateServerFromBackupService
         ?string $pluginTemplate = null,
         ?int $memory = null,
         ?string $paperVersion = null,
+        ?string $pluginMode = null,
+        ?array $pluginSelection = null,
     ): Server
     {
         if ($backup->server_id !== $source->id) {
@@ -118,10 +120,32 @@ class CreateServerFromBackupService
             'status' => 'restoring',
             'source_backup_uuid' => $backup->uuid,
             'plugin_template' => $template,
+            'plugin_mode' => $pluginMode === 'keep' ? 'keep' : 'remove',
+            'plugin_selection' => $this->sanitizePluginSelection($pluginSelection),
             'paper_version' => $paperVersion !== null && trim($paperVersion) !== '' ? trim($paperVersion) : null,
         ], now()->addHours(24));
 
         return $newServer;
+    }
+
+    /**
+     * Keeps only safe jar file names from the plugin selection made while
+     * creating the server.
+     *
+     * @return string[]
+     */
+    private function sanitizePluginSelection(?array $selection): array
+    {
+        return collect($selection ?? [])
+            ->filter(fn ($name) => is_string($name)
+                && $name !== ''
+                && !str_contains($name, '/')
+                && !str_contains($name, '\\')
+                && !str_contains($name, '..')
+                && str_ends_with(strtolower($name), '.jar'))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public static function cacheKey(int $serverId): string

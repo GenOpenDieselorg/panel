@@ -12,7 +12,9 @@ export default (
     nodeId?: number,
     pluginTemplate?: string,
     memoryMiB?: number,
-    paperVersion?: string
+    paperVersion?: string,
+    pluginMode?: 'remove' | 'keep',
+    plugins?: string[]
 ): Promise<CreateServerFromBackupResponse> => {
     return new Promise((resolve, reject) => {
         http.post(`/api/client/servers/${uuid}/backups/${backup}/create-server`, {
@@ -21,6 +23,8 @@ export default (
             plugin_template: pluginTemplate,
             memory_mib: memoryMiB,
             paper_version: paperVersion,
+            plugin_mode: pluginMode,
+            plugins,
         })
             .then(({ data }) =>
                 resolve({

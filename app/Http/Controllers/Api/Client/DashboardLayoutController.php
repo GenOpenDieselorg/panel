@@ -66,9 +66,18 @@ class DashboardLayoutController extends ClientApiController
     {
         $sections = array_values($layout['sections'] ?? []);
 
+        // Empty sections are kept here on purpose: a section is created before any server is
+        // dragged into it, so dropping them server-side would make new sections vanish on save.
         $sections = array_values(array_filter($sections, function ($section) {
-            return is_array($section) && ! empty($section['serverUuids'] ?? []);
+            return is_array($section) && ! empty($section['id'] ?? null) && ! empty($section['name'] ?? null);
         }));
+
+        $sections = array_map(function (array $section) {
+            $section['serverUuids'] = array_values($section['serverUuids'] ?? []);
+            $section['trackPlugins'] = filter_var($section['trackPlugins'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+            return $section;
+        }, $sections);
 
         return [
             'sortMode' => in_array($layout['sortMode'] ?? null, ['custom', 'name_asc', 'name_desc'], true)
@@ -76,6 +85,7 @@ class DashboardLayoutController extends ClientApiController
                 : 'name_asc',
             'sections' => $sections,
             'unsectionedOrder' => array_values($layout['unsectionedOrder'] ?? []),
+            'trackUnsectionedPlugins' => filter_var($layout['trackUnsectionedPlugins'] ?? true, FILTER_VALIDATE_BOOLEAN),
         ];
     }
 
@@ -99,6 +109,7 @@ class DashboardLayoutController extends ClientApiController
             'sortMode' => 'name_asc',
             'sections' => [],
             'unsectionedOrder' => [],
+            'trackUnsectionedPlugins' => true,
         ];
     }
 }

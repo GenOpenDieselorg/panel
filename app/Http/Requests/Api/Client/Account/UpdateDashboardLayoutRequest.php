@@ -33,8 +33,10 @@ class UpdateDashboardLayoutRequest extends ClientApiRequest
             "$prefix.sections.*.name" => 'required|string|max:191',
             "$prefix.sections.*.serverUuids" => 'present|array',
             "$prefix.sections.*.serverUuids.*" => 'string|uuid',
+            "$prefix.sections.*.trackPlugins" => 'sometimes|boolean',
             "$prefix.unsectionedOrder" => 'present|array',
             "$prefix.unsectionedOrder.*" => 'string|uuid',
+            "$prefix.trackUnsectionedPlugins" => 'sometimes|boolean',
         ];
     }
 }
