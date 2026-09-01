@@ -59,6 +59,7 @@ export interface Server {
     };
     isTransferring: boolean;
     cloneCleanupPending: boolean;
+    skipScripts: boolean;
     variables: ServerEggVariable[];
     allocations: Allocation[];
 }
@@ -85,6 +86,7 @@ export const rawDataToServerObject = ({ attributes: data }: FractalResponseData)
     featureLimits: { ...data.feature_limits },
     isTransferring: data.is_transferring,
     cloneCleanupPending: data.clone_cleanup_pending || false,
+    skipScripts: data.skip_scripts,
     variables: ((data.relationships?.variables as FractalResponseList | undefined)?.data || []).map(
         rawDataToServerEggVariable
     ),

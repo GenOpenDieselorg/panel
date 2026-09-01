@@ -81,6 +81,7 @@ class ServerTransformer extends BaseClientTransformer
             'is_installing' => !$server->isInstalled(),
             'is_transferring' => !is_null($server->transfer),
             'clone_cleanup_pending' => CreateServerFromBackupService::isAwaitingPluginSelection($server->id),
+            'skip_scripts' => $server->skip_scripts,
         ];
     }
 
