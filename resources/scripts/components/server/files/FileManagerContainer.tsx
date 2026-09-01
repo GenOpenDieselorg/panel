@@ -44,35 +44,85 @@ const isPluginsDirectory = (directory: string): boolean => cleanDirectoryPath(di
 const isLogsDirectory = (directory: string): boolean => {
     const path = cleanDirectoryPath(directory);
 
-    return path === '/logs' || path.startsWith('/logs/');
+    // Matches /logs as well as nested log directories such as /plugins/Foo/logs.
+    return /(^|\/)logs(\/|$)/.test(path);
 };
 
 // Places directories before files while keeping the ordering produced by the active sort mode.
 const directoriesFirst = (a: FileObject, b: FileObject): number => (a.isFile === b.isFile ? 0 : a.isFile ? 1 : -1);
 
-const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): FileObject[] => {
-    const sortedFiles = [...files].slice(0, FILE_DISPLAY_LIMIT);
+// `localeCompare` constructs a collator on every single call, which is the most expensive part of
+// ordering a large directory. Building it once and reusing `compare` avoids that entirely.
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-    // The logs directory is always presented newest-first regardless of the selected sort mode.
-    const effectiveSortMode: SortMode = isLogsDirectory(directory) ? 'modified_desc' : sortMode;
+// The logs view orders by creation time, which is deliberately not offered as a manual sort mode.
+type EffectiveSortMode = SortMode | 'created_desc';
+
+interface DecoratedFile {
+    file: FileObject;
+    // Sort key for the date and size modes. The name modes compare names directly.
+    value: number;
+}
+
+// An unparseable date yields NaN, which makes a comparator inconsistent and leaves the sort order
+// undefined. Collapsing it to 0 keeps such entries together at the bottom instead.
+const timestamp = (date: Date): number => {
+    const value = date.getTime();
+
+    return Number.isNaN(value) ? 0 : value;
+};
+
+const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): FileObject[] => {
+    // The logs directory is always presented newest-first, by creation time, regardless of the
+    // sort mode the user selected.
+    const effectiveSortMode: EffectiveSortMode = isLogsDirectory(directory) ? 'created_desc' : sortMode;
+
+    // Deduplicate by name in a single pass. The previous adjacent-pair check only caught duplicates
+    // while the list happened to be name-ordered, so it silently did nothing in the date modes.
+    const seen = new Set<string>();
+    const decorated: DecoratedFile[] = [];
+
+    for (const file of files) {
+        if (seen.has(file.name)) continue;
+        seen.add(file.name);
+
+        // Each sort key is computed exactly once here. Reading it inside the comparator instead
+        // would call getTime() O(n log n) times over the course of the sort.
+        let value = 0;
+        if (effectiveSortMode === 'created_desc') {
+            value = timestamp(file.createdAt);
+        } else if (effectiveSortMode === 'modified_desc') {
+            value = timestamp(file.modifiedAt);
+        } else if (effectiveSortMode === 'size_desc') {
+            value = file.size;
+        }
+
+        decorated.push({ file, value });
+    }
 
     switch (effectiveSortMode) {
-        case 'name_desc':
-            sortedFiles.sort((a, b) => b.name.localeCompare(a.name)).sort(directoriesFirst);
-            break;
+        case 'created_desc':
         case 'modified_desc':
-            sortedFiles.sort((a, b) => b.modifiedAt.getTime() - a.modifiedAt.getTime());
+            // Newest first. Directories stay interleaved so the ordering remains purely temporal.
+            decorated.sort((a, b) => b.value - a.value);
             break;
         case 'size_desc':
-            sortedFiles.sort((a, b) => b.size - a.size).sort(directoriesFirst);
+            decorated.sort((a, b) => directoriesFirst(a.file, b.file) || b.value - a.value);
+            break;
+        case 'name_desc':
+            decorated.sort((a, b) => directoriesFirst(a.file, b.file) || collator.compare(b.file.name, a.file.name));
             break;
         case 'name_asc':
         default:
-            sortedFiles.sort((a, b) => a.name.localeCompare(b.name)).sort(directoriesFirst);
+            decorated.sort((a, b) => directoriesFirst(a.file, b.file) || collator.compare(a.file.name, b.file.name));
             break;
     }
 
-    return sortedFiles.filter((file, index) => index === 0 || file.name !== sortedFiles[index - 1].name);
+    // Trim only after sorting. Slicing first would hand back whatever order the daemon happened to
+    // return, so a /logs directory over the limit would drop the newest files before ranking them.
+    const limited = decorated.length > FILE_DISPLAY_LIMIT ? decorated.slice(0, FILE_DISPLAY_LIMIT) : decorated;
+
+    return limited.map((entry) => entry.file);
 };
 
 export default () => {
@@ -219,7 +269,7 @@ export default () => {
                                     <div css={tw`rounded bg-yellow-400 mb-px p-3`}>
                                         <p css={tw`text-yellow-900 text-sm text-center`}>
                                             This directory is too large to display in the browser, limiting the output
-                                            to the first {FILE_DISPLAY_LIMIT} files.
+                                            to the first {FILE_DISPLAY_LIMIT} files in the current sort order.
                                         </p>
                                     </div>
                                 )}

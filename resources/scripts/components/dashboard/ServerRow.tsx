@@ -1,4 +1,4 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEthernet, faHdd, faMemory, faMicrochip, faServer } from '@fortawesome/free-solid-svg-icons';
 import { Link } from 'react-router-dom';
@@ -49,6 +49,11 @@ const StatusIndicatorBox = styled(GreyRowBox)<{ $status: ServerPowerState | unde
 
 type Timer = ReturnType<typeof setInterval>;
 
+// A dashboard can list every server on the panel, and each row previously polled on its own 30
+// second timer whether or not anyone was looking at it. With 58 servers that alone was ~116
+// requests a minute against a 256/minute client API budget, so two open tabs sat on the limit.
+const STATS_INTERVAL = 60000;
+
 export default ({
     server,
     className,
@@ -59,31 +64,83 @@ export default ({
     disableNavigation?: boolean;
 }) => {
     const interval = useRef<Timer>(null) as React.MutableRefObject<Timer>;
+    const rowRef = useRef<HTMLElement | null>(null);
+    // A callback ref keeps this assignable no matter which element the polymorphic wrapper renders;
+    // `as` widens the ref type to a div/Link union that a plain RefObject cannot satisfy.
+    const attachRow = useCallback((node: unknown) => {
+        rowRef.current = node instanceof HTMLElement ? node : null;
+    }, []);
+    const lastFetch = useRef<number>(0);
     const [isSuspended, setIsSuspended] = useState(server.status === 'suspended');
     const [stats, setStats] = useState<ServerStats | null>(null);
+    const [isOnScreen, setIsOnScreen] = useState(false);
+    const [isTabVisible, setIsTabVisible] = useState(() => document.visibilityState !== 'hidden');
 
-    const getStats = () =>
-        getServerResourceUsage(server.uuid)
+    const getStats = () => {
+        lastFetch.current = Date.now();
+
+        return getServerResourceUsage(server.uuid)
             .then((data) => setStats(data))
             .catch((error) => console.error(error));
+    };
 
     useEffect(() => {
         setIsSuspended(stats?.isSuspended || server.status === 'suspended');
     }, [stats?.isSuspended, server.status]);
 
+    // Only rows that are actually on screen are worth polling. On a dashboard listing every server
+    // this is the difference between polling a handful of rows and polling all of them.
+    useEffect(() => {
+        const element = rowRef.current;
+
+        if (!element || typeof IntersectionObserver === 'undefined') {
+            setIsOnScreen(true);
+
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => setIsOnScreen(entries.some((entry) => entry.isIntersecting)),
+            // Wake a row shortly before it scrolls into view so it already has numbers on arrival.
+            { rootMargin: '200px' }
+        );
+
+        observer.observe(element);
+
+        return () => observer.disconnect();
+    }, []);
+
+    // Nobody is reading a backgrounded tab, so let its timers stop until it comes back.
+    useEffect(() => {
+        const onVisibilityChange = () => setIsTabVisible(document.visibilityState !== 'hidden');
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+
+        return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+    }, []);
+
     useEffect(() => {
         // Don't waste a HTTP request if there is nothing important to show to the user because
         // the server is suspended.
         if (isSuspended || server.isNodeUnderMaintenance) return;
+        if (!isOnScreen || !isTabVisible) return;
 
-        getStats().then(() => {
-            interval.current = setInterval(() => getStats(), 30000);
-        });
+        // Scrolling a row out of view and straight back in must not refire a request that was just
+        // made, otherwise a quick scroll through a long list becomes a burst of them.
+        const elapsed = Date.now() - lastFetch.current;
+        const initialDelay = elapsed >= STATS_INTERVAL ? 0 : STATS_INTERVAL - elapsed;
+
+        const timeout = setTimeout(() => {
+            getStats().then(() => {
+                interval.current = setInterval(() => getStats(), STATS_INTERVAL);
+            });
+        }, initialDelay);
 
         return () => {
+            clearTimeout(timeout);
             interval.current && clearInterval(interval.current);
         };
-    }, [isSuspended, server.isNodeUnderMaintenance]);
+    }, [isSuspended, server.isNodeUnderMaintenance, isOnScreen, isTabVisible]);
 
     const alarms = { cpu: false, memory: false, disk: false };
     if (stats) {
@@ -100,7 +157,13 @@ export default ({
     const wrapperProps = disableNavigation ? {} : { to: `/server/${server.id}` };
 
     return (
-        <StatusIndicatorBox as={Wrapper} {...wrapperProps} className={className} $status={stats?.status}>
+        <StatusIndicatorBox
+            ref={attachRow}
+            as={Wrapper}
+            {...wrapperProps}
+            className={className}
+            $status={stats?.status}
+        >
             <div css={tw`flex items-center col-span-12 sm:col-span-5 lg:col-span-6`}>
                 <div className={'icon mr-4'}>
                     <FontAwesomeIcon icon={faServer} />
