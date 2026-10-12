@@ -70,9 +70,7 @@ export default () => {
                 type={'button'}
                 onClick={start}
                 title={'Rename for yourself only (other users still see the real name)'}
-                className={
-                    'flex-none text-gray-400 hover:text-gray-100 opacity-0 group-hover:opacity-100 transition-opacity'
-                }
+                className={'flex-none text-sm text-gray-500 hover:text-gray-100 transition-colors'}
             >
                 <FontAwesomeIcon icon={faPencilAlt} />
             </button>
