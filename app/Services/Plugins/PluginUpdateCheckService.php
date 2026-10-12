@@ -56,6 +56,7 @@ class PluginUpdateCheckService
             ->keyBy('name');
 
         $existing = ServerPlugin::query()->where('server_id', $server->id)->get()->keyBy('file_name');
+        $blacklist = PluginUpdateRule::query()->where('type', PluginUpdateRule::TYPE_BLACKLIST)->get();
 
         ServerPlugin::query()
             ->where('server_id', $server->id)
@@ -72,6 +73,13 @@ class PluginUpdateCheckService
 
             $row->fill(['file_size' => (int) $file['size'], 'file_modified_at' => $file['modified']]);
             $row->fill(array_merge(array_fill_keys(ServerPlugin::resolutionFields(), null), ['status' => ServerPlugin::STATUS_PENDING]));
+
+            // Blacklisted by file name: no need to pull the jar from the daemon at all.
+            if (PluginUpdateRule::findFor($row, $blacklist)) {
+                $row->fill(['sha1' => null, 'status' => ServerPlugin::STATUS_IGNORED])->save();
+
+                continue;
+            }
 
             $twin = ServerPlugin::query()
                 ->where('file_name', $name)
@@ -144,10 +152,7 @@ class PluginUpdateCheckService
     {
         $resolvable = $plugins->filter(fn (ServerPlugin $plugin) => $plugin->plugin_key && $plugin->sha1);
 
-        $rules = PluginUpdateRule::query()
-            ->whereIn('plugin_key', $resolvable->pluck('plugin_key')->unique()->all() ?: [''])
-            ->get()
-            ->keyBy('plugin_key');
+        $rules = PluginUpdateRule::query()->get();
 
         $hashes = [];
         try {
@@ -157,7 +162,7 @@ class PluginUpdateCheckService
         }
 
         foreach ($resolvable as $plugin) {
-            $result = $this->resolver->resolve($plugin, $rules->get($plugin->plugin_key), $hashes[$plugin->sha1] ?? null);
+            $result = $this->resolver->resolve($plugin, PluginUpdateRule::findFor($plugin, $rules), $hashes[$plugin->sha1] ?? null);
 
             $plugin->fill($result + ['checked_at' => Carbon::now()])->save();
         }

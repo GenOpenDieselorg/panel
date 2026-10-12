@@ -32,6 +32,7 @@ import { getPluginUpdates } from '@/api/server/plugins/pluginUpdates';
 import { PluginUpdatesContext } from '@/components/server/files/plugins/PluginUpdatesContext';
 import PluginUpdatesBar from '@/components/server/files/plugins/PluginUpdatesBar';
 import PluginUpdateModal from '@/components/server/files/plugins/PluginUpdateModal';
+import BlacklistDialog from '@/components/server/files/plugins/BlacklistDialog';
 
 const FILE_DISPLAY_LIMIT = 400;
 
@@ -166,6 +167,7 @@ export default () => {
 
     const inPluginsDirectory = isPluginsDirectory(directory);
     const [pluginModalFile, setPluginModalFile] = useState<string | null>(null);
+    const [blacklistFile, setBlacklistFile] = useState<string | null>(null);
     const [pluginCheckRunning, setPluginCheckRunning] = useState(false);
     const { data: pluginUpdates, mutate: mutatePluginUpdates } = useSWR(
         inPluginsDirectory ? `${uuid}:plugin-updates` : null,
@@ -219,7 +221,12 @@ export default () => {
     return (
         <ServerContentBlock title={'File Manager'} showFlashKey={'files'}>
             <PluginUpdatesContext.Provider
-                value={{ enabled: inPluginsDirectory, byFile: pluginUpdatesByFile, open: setPluginModalFile }}
+                value={{
+                    enabled: inPluginsDirectory,
+                    byFile: pluginUpdatesByFile,
+                    open: setPluginModalFile,
+                    blacklist: setBlacklistFile,
+                }}
             >
                 <FilesSubNavigation />
                 <ErrorBoundary>
@@ -325,6 +332,11 @@ export default () => {
                         )}
                     </>
                 )}
+                <BlacklistDialog
+                    plugin={blacklistFile ? pluginUpdatesByFile.get(blacklistFile) || null : null}
+                    onClose={() => setBlacklistFile(null)}
+                    onChanged={onPluginsChanged}
+                />
                 <PluginUpdateModal
                     plugin={pluginModalFile ? pluginUpdatesByFile.get(pluginModalFile) || null : null}
                     onClose={() => setPluginModalFile(null)}

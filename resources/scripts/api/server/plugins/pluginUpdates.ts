@@ -23,7 +23,7 @@ export interface PluginUpdate {
     latestGameVersions: string[];
     error: string | null;
     checkedAt: Date | null;
-    rule: { id: number; type: 'blacklist' | 'link'; projectUrl: string | null } | null;
+    rule: { id: number; type: 'blacklist' | 'link'; pattern: string | null; projectUrl: string | null } | null;
 }
 
 export interface PluginUpdateList {
@@ -36,6 +36,8 @@ export interface PluginUpdateRule {
     id: number;
     pluginName: string;
     type: 'blacklist' | 'link';
+    // Blacklist rules match every plugin or jar name starting with this, e.g. "chestsorter".
+    pattern: string | null;
     source: 'modrinth' | 'spigot' | null;
     projectUrl: string | null;
     createdAt: Date;
@@ -55,7 +57,9 @@ const rawDataToPluginUpdate = (data: any): PluginUpdate => ({
     latestGameVersions: data.latest_game_versions || [],
     error: data.error,
     checkedAt: data.checked_at ? new Date(data.checked_at) : null,
-    rule: data.rule ? { id: data.rule.id, type: data.rule.type, projectUrl: data.rule.project_url } : null,
+    rule: data.rule
+        ? { id: data.rule.id, type: data.rule.type, pattern: data.rule.pattern, projectUrl: data.rule.project_url }
+        : null,
 });
 
 export const getPluginUpdates = async (uuid: string): Promise<PluginUpdateList> => {
@@ -89,6 +93,7 @@ export const getPluginUpdateRules = async (): Promise<PluginUpdateRule[]> => {
         id: rule.id,
         pluginName: rule.plugin_name,
         type: rule.type,
+        pattern: rule.pattern,
         source: rule.source,
         projectUrl: rule.project_url,
         createdAt: new Date(rule.created_at),
@@ -96,10 +101,14 @@ export const getPluginUpdateRules = async (): Promise<PluginUpdateRule[]> => {
 };
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
-export const savePluginUpdateRule = async (pluginName: string, type: 'blacklist' | 'link', url?: string) => {
+export const savePluginUpdateRule = async (
+    pluginName: string,
+    type: 'blacklist' | 'link',
+    options: { url?: string; pattern?: string } = {}
+) => {
     await http.post(
         '/api/client/plugin-updates/rules',
-        { plugin_name: pluginName, type, url: url || null },
+        { plugin_name: pluginName, type, url: options.url || null, pattern: options.pattern || null },
         { timeout: 120000 }
     );
 };

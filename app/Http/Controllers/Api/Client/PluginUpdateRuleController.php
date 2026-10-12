@@ -34,6 +34,7 @@ class PluginUpdateRuleController extends ClientApiController
                 'id' => $rule->id,
                 'plugin_name' => $rule->plugin_name,
                 'type' => $rule->type,
+                'pattern' => $rule->pattern(),
                 'source' => $rule->source,
                 'project_url' => $rule->project_url,
                 'created_at' => $rule->created_at->toAtomString(),
@@ -54,9 +55,22 @@ class PluginUpdateRuleController extends ClientApiController
             'plugin_name' => 'required|string|max:191',
             'type' => 'required|in:blacklist,link',
             'url' => 'required_if:type,link|nullable|string|max:255',
+            'pattern' => 'nullable|string|max:100',
         ]);
 
         $attributes = ['plugin_name' => $data['plugin_name'], 'type' => $data['type'], 'source' => null, 'project_id' => null, 'project_url' => null];
+        $key = PluginUpdateRule::keyFor($data['plugin_name']);
+
+        if ($data['type'] === PluginUpdateRule::TYPE_BLACKLIST) {
+            $pattern = PluginUpdateRule::normalise($data['pattern'] ?? '') ?: PluginUpdateRule::normalise($data['plugin_name']);
+
+            // A very short prefix would silently blacklist unrelated plugins on every server.
+            if (strlen($pattern) < 3) {
+                throw new DisplayException('Wzorzec blacklisty musi mieć co najmniej 3 litery lub cyfry.');
+            }
+
+            $key = PluginUpdateRule::blacklistKey($pattern);
+        }
 
         if ($data['type'] === PluginUpdateRule::TYPE_LINK) {
             $parsed = $this->resolver->parseProjectUrl($data['url']);
@@ -68,16 +82,17 @@ class PluginUpdateRuleController extends ClientApiController
         }
 
         $rule = PluginUpdateRule::query()->updateOrCreate(
-            ['plugin_key' => PluginUpdateRule::keyFor($data['plugin_name'])],
+            ['plugin_key' => $key],
             $attributes + ['created_by' => $request->user()->id]
         );
 
         Activity::event('plugin-updates:rule.' . $rule->type)
             ->property('plugin', $rule->plugin_name)
+            ->property('pattern', $rule->pattern())
             ->property('url', $rule->project_url)
             ->log();
 
-        $this->reResolve($rule->plugin_key);
+        $this->reResolve($rule);
 
         return new JsonResponse(['id' => $rule->id], Response::HTTP_CREATED);
     }
@@ -89,16 +104,44 @@ class PluginUpdateRuleController extends ClientApiController
         $model = PluginUpdateRule::query()->findOrFail($rule);
         $model->delete();
 
-        Activity::event('plugin-updates:rule.delete')->property('plugin', $model->plugin_name)->log();
+        Activity::event('plugin-updates:rule.delete')
+            ->property('plugin', $model->plugin_name)
+            ->property('pattern', $model->pattern())
+            ->log();
 
-        $this->reResolve($model->plugin_key);
+        $this->reResolve($model);
 
         return new JsonResponse([], Response::HTTP_NO_CONTENT);
     }
 
-    private function reResolve(string $pluginKey): void
+    /**
+     * Applies a rule change to every matching plugin on the panel straight away.
+     */
+    private function reResolve(PluginUpdateRule $rule): void
     {
-        $this->checkService->resolve(ServerPlugin::query()->where('plugin_key', $pluginKey)->get());
+        if ($rule->type === PluginUpdateRule::TYPE_LINK) {
+            $this->checkService->resolve(ServerPlugin::query()->where('plugin_key', $rule->plugin_key)->get());
+
+            return;
+        }
+
+        $matching = ServerPlugin::query()->get()->filter(fn (ServerPlugin $plugin) => $rule->matches($plugin));
+
+        if ($rule->exists) {
+            // Blacklisting needs no upstream lookups: every match is simply switched off.
+            ServerPlugin::query()->whereIn('id', $matching->pluck('id')->all() ?: [0])->update(
+                array_merge(array_fill_keys(ServerPlugin::resolutionFields(), null), ['status' => ServerPlugin::STATUS_IGNORED])
+            );
+
+            return;
+        }
+
+        // Jars skipped by file name were never inspected, so they wait for the next check to be read.
+        ServerPlugin::query()
+            ->whereIn('id', $matching->whereNull('sha1')->pluck('id')->all() ?: [0])
+            ->update(['status' => ServerPlugin::STATUS_PENDING]);
+
+        $this->checkService->resolve($matching->whereNotNull('sha1')->values());
     }
 
     private function authorizeAdmin(Request $request): void

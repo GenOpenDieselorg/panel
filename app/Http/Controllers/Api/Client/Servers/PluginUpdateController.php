@@ -30,15 +30,12 @@ class PluginUpdateController extends ClientApiController
     {
         $plugins = ServerPlugin::query()->where('server_id', $server->id)->orderBy('file_name')->get();
 
-        $rules = PluginUpdateRule::query()
-            ->whereIn('plugin_key', $plugins->pluck('plugin_key')->filter()->unique()->all() ?: [''])
-            ->get()
-            ->keyBy('plugin_key');
+        $rules = PluginUpdateRule::query()->get();
 
         return new JsonResponse([
             'checking' => Cache::has(CheckServerPluginUpdatesJob::cacheKey($server)),
             'last_checked_at' => $plugins->max('checked_at')?->toAtomString(),
-            'plugins' => $plugins->map(fn (ServerPlugin $plugin) => $this->transform($plugin, $rules->get($plugin->plugin_key)))->values(),
+            'plugins' => $plugins->map(fn (ServerPlugin $plugin) => $this->transform($plugin, PluginUpdateRule::findFor($plugin, $rules)))->values(),
         ]);
     }
 
@@ -99,7 +96,7 @@ class PluginUpdateController extends ClientApiController
             'latest_game_versions' => $plugin->latest_game_versions ?? [],
             'error' => $plugin->error,
             'checked_at' => $plugin->checked_at?->toAtomString(),
-            'rule' => $rule ? ['id' => $rule->id, 'type' => $rule->type, 'project_url' => $rule->project_url] : null,
+            'rule' => $rule ? ['id' => $rule->id, 'type' => $rule->type, 'pattern' => $rule->pattern(), 'project_url' => $rule->project_url] : null,
         ];
     }
 }

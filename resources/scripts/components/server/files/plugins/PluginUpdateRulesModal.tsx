@@ -64,7 +64,16 @@ export default ({ open, onClose, onChanged }: { open: boolean; onClose: () => vo
                                 {rule.type === 'blacklist' ? 'blacklista' : 'link'}
                             </span>
                             <div className={'flex-1 min-w-0'}>
-                                <p className={'text-gray-100 truncate'}>{rule.pluginName}</p>
+                                <p className={'text-gray-100 truncate'}>
+                                    {rule.type === 'blacklist' ? (
+                                        <>
+                                            <code>{rule.pattern}*</code>
+                                            <span className={'text-xs text-gray-400'}> ({rule.pluginName})</span>
+                                        </>
+                                    ) : (
+                                        rule.pluginName
+                                    )}
+                                </p>
                                 {rule.projectUrl && (
                                     <a
                                         href={rule.projectUrl}

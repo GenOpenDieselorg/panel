@@ -16,6 +16,8 @@ import {
     updatePlugin,
 } from '@/api/server/plugins/pluginUpdates';
 
+import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
+
 const FLASH_KEY = 'plugin-updates';
 
 export const sourceLabel = (source: PluginUpdate['source']): string =>
@@ -47,6 +49,7 @@ interface Props {
 
 export default ({ plugin, onClose, onChanged }: Props) => {
     const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
+    const { blacklist } = usePluginUpdates();
     const rootAdmin = useStoreState((state) => state.user.data!.rootAdmin);
     const [canCreate, canDelete] = usePermissions(['file.create', 'file.delete']);
     const { clearFlashes, clearAndAddHttpError } = useFlashKey(FLASH_KEY);
@@ -81,10 +84,13 @@ export default ({ plugin, onClose, onChanged }: Props) => {
 
     const onSaveLink = () =>
         run('Szukanie wersji w nowym projekcie...', () =>
-            savePluginUpdateRule(plugin.pluginName || '', 'link', linkUrl.trim())
+            savePluginUpdateRule(plugin.pluginName || '', 'link', { url: linkUrl.trim() })
         );
 
-    const onBlacklist = () => run('Zapisywanie...', () => savePluginUpdateRule(plugin.pluginName || '', 'blacklist'));
+    const onBlacklist = () => {
+        onClose();
+        blacklist(plugin.fileName);
+    };
 
     const onRemoveRule = () => run('Zapisywanie...', () => deletePluginUpdateRule(plugin.rule!.id));
 
@@ -183,7 +189,9 @@ export default ({ plugin, onClose, onChanged }: Props) => {
                             <div className={'flex flex-wrap gap-2 mt-3'}>
                                 {plugin.rule ? (
                                     <Button.Text onClick={onRemoveRule}>
-                                        {plugin.rule.type === 'blacklist' ? 'Usuń z blacklisty' : 'Usuń ręczny link'}
+                                        {plugin.rule.type === 'blacklist'
+                                            ? `Usuń z blacklisty (${plugin.rule.pattern}*)`
+                                            : 'Usuń ręczny link'}
                                     </Button.Text>
                                 ) : null}
                                 {plugin.rule?.type !== 'blacklist' && (
