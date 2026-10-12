@@ -41,14 +41,14 @@ export default ({ open, onClose, onChanged }: { open: boolean; onClose: () => vo
         <Dialog
             open={open}
             onClose={onClose}
-            title={'Reguły aktualizacji pluginów'}
-            description={'Obowiązują na wszystkich serwerach. Nowe reguły dodasz z okna konkretnego pluginu.'}
+            title={'Plugin update rules'}
+            description={"These apply to every server. Add new rules from a plugin's own window."}
         >
             <FlashMessageRender byKey={FLASH_KEY} className={'mb-4'} />
             {!rules ? (
                 <Spinner centered />
             ) : !rules.length ? (
-                <p className={'text-sm text-gray-400 text-center py-4'}>Brak reguł.</p>
+                <p className={'text-sm text-gray-400 text-center py-4'}>No rules.</p>
             ) : (
                 <div className={'max-h-[60vh] overflow-y-auto'}>
                     {rules.map((rule) => (
@@ -61,7 +61,7 @@ export default ({ open, onClose, onChanged }: { open: boolean; onClose: () => vo
                                     rule.type === 'blacklist' ? 'bg-red-600 text-red-50' : 'bg-blue-600 text-blue-50'
                                 }`}
                             >
-                                {rule.type === 'blacklist' ? 'blacklista' : 'link'}
+                                {rule.type === 'blacklist' ? 'blacklist' : 'link'}
                             </span>
                             <div className={'flex-1 min-w-0'}>
                                 <p className={'text-gray-100 truncate'}>
@@ -90,14 +90,14 @@ export default ({ open, onClose, onChanged }: { open: boolean; onClose: () => vo
                                 disabled={busy === rule.id}
                                 onClick={() => remove(rule)}
                             >
-                                Usuń
+                                Remove
                             </Button.Text>
                         </div>
                     ))}
                 </div>
             )}
             <Dialog.Footer>
-                <Button.Text onClick={onClose}>Zamknij</Button.Text>
+                <Button.Text onClick={onClose}>Close</Button.Text>
             </Dialog.Footer>
         </Dialog>
     );

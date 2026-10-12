@@ -190,11 +190,7 @@ const FileDropdownMenu = ({ file }: { file: FileObject }) => {
                     </Can>
                 )}
                 {pluginEntry && (
-                    <Row
-                        onClick={() => pluginUpdates.open(file.name)}
-                        icon={faPuzzlePiece}
-                        title={'Plugin / aktualizacje'}
-                    />
+                    <Row onClick={() => pluginUpdates.open(file.name)} icon={faPuzzlePiece} title={'Plugin updates'} />
                 )}
                 {file.isFile && <Row onClick={doDownload} icon={faFileDownload} title={'Download'} />}
                 <Can action={'file.delete'}>

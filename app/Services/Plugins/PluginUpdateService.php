@@ -38,7 +38,7 @@ class PluginUpdateService
     public function handle(Server $server, ServerPlugin $plugin): ?ServerPlugin
     {
         if ($plugin->status !== ServerPlugin::STATUS_UPDATE_AVAILABLE || !$plugin->download_url) {
-            throw new DisplayException('Dla tego pluginu nie ma dostępnej aktualizacji.');
+            throw new DisplayException('There is no update available for this plugin.');
         }
 
         $temp = tempnam(sys_get_temp_dir(), 'plugin-update-');
@@ -48,12 +48,12 @@ class PluginUpdateService
             $meta = $this->inspector->inspect($temp);
 
             if (!$meta) {
-                throw new DisplayException('Pobrany plik nie jest poprawnym pluginem (brak plugin.yml).');
+                throw new DisplayException('The downloaded file is not a valid plugin (no plugin.yml).');
             }
 
             if (PluginUpdateRule::keyFor($meta['name']) !== $plugin->plugin_key) {
                 throw new DisplayException(sprintf(
-                    'Pobrany plik to plugin "%s", a nie "%s" — aktualizacja przerwana. Popraw link do projektu.',
+                    'The downloaded file is the plugin "%s", not "%s". Update aborted; fix the project link.',
                     $meta['name'],
                     $plugin->plugin_name
                 ));
@@ -61,7 +61,7 @@ class PluginUpdateService
 
             if ($this->resolver->versionsMatch($meta['version'], $plugin->plugin_version ?? '')) {
                 throw new DisplayException(sprintf(
-                    'Źródło zwróciło tę samą wersję (%s), którą masz zainstalowaną. Spróbuj ponownie później.',
+                    'The source returned the same version (%s) you already have installed. Try again later.',
                     $meta['version']
                 ));
             }
@@ -95,11 +95,11 @@ class PluginUpdateService
                 ])
                 ->get($url);
         } catch (\Throwable $exception) {
-            throw new DisplayException('Nie udało się pobrać nowej wersji: ' . $exception->getMessage());
+            throw new DisplayException('Could not download the new version: ' . $exception->getMessage());
         }
 
         if (!$response->successful()) {
-            throw new DisplayException(sprintf('Nie udało się pobrać nowej wersji (HTTP %d).', $response->status()));
+            throw new DisplayException(sprintf('Could not download the new version (HTTP %d).', $response->status()));
         }
     }
 

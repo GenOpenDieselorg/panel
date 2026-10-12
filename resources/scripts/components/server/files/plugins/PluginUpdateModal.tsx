@@ -24,14 +24,14 @@ export const sourceLabel = (source: PluginUpdate['source']): string =>
     source === 'modrinth' ? 'Modrinth' : source === 'spigot' ? 'SpigotMC' : '—';
 
 const STATUS_LABELS: Record<PluginUpdateStatus, string> = {
-    pending: 'Czeka na sprawdzenie.',
-    update_available: 'Dostępna jest nowsza wersja.',
-    up_to_date: 'Masz najnowszą wersję.',
-    not_found: 'Nie znaleziono tego pluginu (z tą wersją) na Modrinth ani SpigotMC.',
-    not_downloadable: 'Plugin znaleziony, ale nie da się go pobrać automatycznie (premium lub link zewnętrzny).',
-    ignored: 'Plugin jest na globalnej blackliście — nie jest sprawdzany.',
-    unreadable: 'Nie udało się odczytać plugin.yml z tego pliku.',
-    error: 'Sprawdzanie zakończyło się błędem.',
+    pending: 'Waiting to be checked.',
+    update_available: 'A newer version is available.',
+    up_to_date: 'You have the latest version.',
+    not_found: 'This plugin (with this version) was not found on Modrinth or SpigotMC.',
+    not_downloadable: 'Plugin found, but it cannot be downloaded automatically (premium or external link).',
+    ignored: 'This plugin is on the global blacklist and is not checked.',
+    unreadable: 'Could not read plugin.yml from this file.',
+    error: 'The check failed.',
 };
 
 const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
@@ -78,12 +78,12 @@ export default ({ plugin, onClose, onChanged }: Props) => {
     };
 
     const onUpdate = () =>
-        run('Pobieranie i podmiana pliku...', () =>
+        run('Downloading and replacing the file...', () =>
             updatePlugin(uuid, plugin.fileName).then((updated) => setDone(updated))
         );
 
     const onSaveLink = () =>
-        run('Szukanie wersji w nowym projekcie...', () =>
+        run('Looking up versions in the new project...', () =>
             savePluginUpdateRule(plugin.pluginName || '', 'link', { url: linkUrl.trim() })
         );
 
@@ -92,7 +92,7 @@ export default ({ plugin, onClose, onChanged }: Props) => {
         blacklist(plugin.fileName);
     };
 
-    const onRemoveRule = () => run('Zapisywanie...', () => deletePluginUpdateRule(plugin.rule!.id));
+    const onRemoveRule = () => run('Saving...', () => deletePluginUpdateRule(plugin.rule!.id));
 
     return (
         <Dialog
@@ -110,23 +110,23 @@ export default ({ plugin, onClose, onChanged }: Props) => {
             {done !== undefined ? (
                 <div className={'rounded bg-green-600/20 border border-green-600 p-4 text-sm text-green-50'}>
                     <p>
-                        Zaktualizowano <strong>{plugin.pluginName}</strong> do wersji{' '}
+                        Updated <strong>{plugin.pluginName}</strong> to version{' '}
                         <strong>{done?.pluginVersion || plugin.latestVersion}</strong>
                         {done && <> ({done.fileName})</>}.
                     </p>
                     <p className={'mt-2'}>
-                        Zrestartuj serwer, żeby załadować nową wersję. Stary plik został przeniesiony do{' '}
+                        Restart the server to load the new version. The old file was moved to{' '}
                         <code>plugins/.update-backups/</code>.
                     </p>
                 </div>
             ) : (
                 <>
                     <div className={'rounded bg-gray-700 px-4 py-2'}>
-                        <Row label={'Plik'}>{plugin.fileName}</Row>
-                        <Row label={'Zainstalowana'}>{plugin.pluginVersion || '—'}</Row>
-                        {plugin.latestVersion && <Row label={'Najnowsza'}>{plugin.latestVersion}</Row>}
+                        <Row label={'File'}>{plugin.fileName}</Row>
+                        <Row label={'Installed'}>{plugin.pluginVersion || '—'}</Row>
+                        {plugin.latestVersion && <Row label={'Latest'}>{plugin.latestVersion}</Row>}
                         {plugin.projectUrl && (
-                            <Row label={'Źródło'}>
+                            <Row label={'Source'}>
                                 <a
                                     href={plugin.projectUrl}
                                     target={'_blank'}
@@ -136,12 +136,12 @@ export default ({ plugin, onClose, onChanged }: Props) => {
                                     {sourceLabel(plugin.source)}: {plugin.projectTitle || plugin.projectUrl}
                                 </a>
                                 {plugin.rule?.type === 'link' && (
-                                    <span className={'ml-2 text-xs text-yellow-400'}>(link ustawiony ręcznie)</span>
+                                    <span className={'ml-2 text-xs text-yellow-400'}>(link set manually)</span>
                                 )}
                             </Row>
                         )}
                         {plugin.latestGameVersions.length > 0 && (
-                            <Row label={'Wersje MC'}>
+                            <Row label={'MC versions'}>
                                 {plugin.latestGameVersions.length > 6
                                     ? `${plugin.latestGameVersions[0]} … ${
                                           plugin.latestGameVersions[plugin.latestGameVersions.length - 1]
@@ -150,32 +150,32 @@ export default ({ plugin, onClose, onChanged }: Props) => {
                             </Row>
                         )}
                         {plugin.pluginAuthors.length > 0 && (
-                            <Row label={'Autor (plugin.yml)'}>{plugin.pluginAuthors.join(', ')}</Row>
+                            <Row label={'Author (plugin.yml)'}>{plugin.pluginAuthors.join(', ')}</Row>
                         )}
-                        {plugin.error && <Row label={'Błąd'}>{plugin.error}</Row>}
+                        {plugin.error && <Row label={'Error'}>{plugin.error}</Row>}
                     </div>
 
                     {plugin.status === 'update_available' && (
                         <p className={'mt-3 text-xs text-gray-400'}>
-                            Sprawdź, czy źródło to na pewno ten sam plugin. Nowy plik zostanie zweryfikowany (nazwa z
-                            plugin.yml) przed podmianą, a stary trafi do <code>plugins/.update-backups/</code>. Zmiana
-                            zadziała po restarcie serwera.
+                            Make sure the source really is the same plugin. The new file is verified (its plugin.yml
+                            name) before the swap, and the old one is moved to <code>plugins/.update-backups/</code>.
+                            The change takes effect after a server restart.
                         </p>
                     )}
 
                     {rootAdmin && plugin.pluginName && (
                         <div className={'mt-5 border-t border-gray-600 pt-4'}>
                             <p className={'text-xs uppercase tracking-wide text-gray-400 mb-2'}>
-                                Administrator — reguły globalne dla „{plugin.pluginName}”
+                                Admin: global rules for “{plugin.pluginName}”
                             </p>
                             <label className={'block text-sm text-gray-300 mb-1'} htmlFor={'plugin-link'}>
-                                Zły plugin? Wklej poprawny link (Modrinth lub SpigotMC)
+                                Wrong plugin? Paste the correct link (Modrinth or SpigotMC)
                             </label>
                             <div className={'flex gap-2'}>
                                 <Input
                                     id={'plugin-link'}
                                     value={linkUrl}
-                                    placeholder={'https://www.spigotmc.org/resources/nazwa.12345/'}
+                                    placeholder={'https://www.spigotmc.org/resources/name.12345/'}
                                     onChange={(e) => setLinkUrl(e.currentTarget.value)}
                                 />
                                 <Button
@@ -183,20 +183,20 @@ export default ({ plugin, onClose, onChanged }: Props) => {
                                     disabled={!linkUrl.trim()}
                                     onClick={onSaveLink}
                                 >
-                                    Zapisz link
+                                    Save link
                                 </Button>
                             </div>
                             <div className={'flex flex-wrap gap-2 mt-3'}>
                                 {plugin.rule ? (
                                     <Button.Text onClick={onRemoveRule}>
                                         {plugin.rule.type === 'blacklist'
-                                            ? `Usuń z blacklisty (${plugin.rule.pattern}*)`
-                                            : 'Usuń ręczny link'}
+                                            ? `Remove from blacklist (${plugin.rule.pattern}*)`
+                                            : 'Remove manual link'}
                                     </Button.Text>
                                 ) : null}
                                 {plugin.rule?.type !== 'blacklist' && (
                                     <Button.Danger variant={Button.Variants.Secondary} onClick={onBlacklist}>
-                                        Dodaj do blacklisty
+                                        Add to blacklist
                                     </Button.Danger>
                                 )}
                             </div>
@@ -206,10 +206,10 @@ export default ({ plugin, onClose, onChanged }: Props) => {
             )}
 
             <Dialog.Footer>
-                <Button.Text onClick={onClose}>Zamknij</Button.Text>
+                <Button.Text onClick={onClose}>Close</Button.Text>
                 {done === undefined && plugin.status === 'update_available' && canCreate && canDelete && (
                     <Button onClick={onUpdate} disabled={!!busy}>
-                        Aktualizuj do {plugin.latestVersion}
+                        Update to {plugin.latestVersion}
                     </Button>
                 )}
             </Dialog.Footer>

@@ -56,26 +56,25 @@ export default ({ plugin, onClose, onChanged }: Props) => {
             open={!!plugin}
             onClose={onClose}
             preventExternalClose={saving}
-            title={'Dodaj do blacklisty'}
-            description={'Plugin przestanie być sprawdzany na wszystkich serwerach, w każdej wersji.'}
+            title={'Add to blacklist'}
+            description={'The plugin will no longer be checked on any server, in any version.'}
         >
             <FlashMessageRender byKey={FLASH_KEY} className={'mb-4'} />
             <label className={'block text-sm text-gray-300 mb-1'} htmlFor={'blacklist-pattern'}>
-                Wzorzec (nazwa pluginu lub pliku zaczynająca się od)
+                Pattern (plugin or file name starting with)
             </label>
             <div className={'flex items-center gap-2'}>
                 <Input id={'blacklist-pattern'} value={pattern} onChange={(e) => setPattern(e.currentTarget.value)} />
                 <span className={'text-gray-400 text-lg'}>*</span>
             </div>
             <p className={'mt-2 text-xs text-gray-400'}>
-                Zablokuje wszystko, co pasuje do <code className={'text-gray-200'}>{normalised || '…'}*</code> (bez
-                wielkości liter, spacji i znaków specjalnych), np. {normalised || 'nazwa'}-1.0.jar,{' '}
-                {normalised || 'nazwa'}v2.jar.
+                Blocks everything matching <code className={'text-gray-200'}>{normalised || '…'}*</code> (ignoring case,
+                spaces and special characters), e.g. {normalised || 'name'}-1.0.jar, {normalised || 'name'}v2.jar.
             </p>
             <Dialog.Footer>
-                <Button.Text onClick={onClose}>Anuluj</Button.Text>
+                <Button.Text onClick={onClose}>Cancel</Button.Text>
                 <Button.Danger disabled={saving || normalised.length < 3} onClick={save}>
-                    Blacklistuj {normalised}*
+                    Blacklist {normalised}*
                 </Button.Danger>
             </Dialog.Footer>
         </Dialog>

@@ -153,7 +153,21 @@ class PluginSourceResolver
             $current = null;
         }
 
-        $current ??= Arr::first($versions, fn ($v) => $this->versionsMatch($v['version_number'] ?? '', $plugin->plugin_version));
+        if (!$current) {
+            $current = $this->findInstalled($versions, 'version_number', $plugin->plugin_version);
+
+            if ($current && $this->isPreRelease($plugin->plugin_version) && !$this->isPreRelease($current['version_number'])) {
+                // A dev build such as 5.12.1-SNAPSHOT only loosely matches the 5.12.1 release, which
+                // came out after it. Treat the installed jar as an older beta of that release.
+                $current = [
+                    'id' => null,
+                    'project_id' => $current['project_id'],
+                    'version_number' => $plugin->plugin_version,
+                    'version_type' => 'beta',
+                    'date_published' => Carbon::parse($current['date_published'])->subSecond()->toIso8601String(),
+                ];
+            }
+        }
 
         if (!$current && !$pinned) {
             return $this->result(ServerPlugin::STATUS_NOT_FOUND);
@@ -201,7 +215,12 @@ class PluginSourceResolver
         }
 
         $versions = $this->spigetVersions($resourceId);
-        $current = Arr::first($versions, fn ($v) => $this->versionsMatch($v['name'] ?? '', $plugin->plugin_version));
+        $current = $this->findInstalled($versions, 'name', $plugin->plugin_version);
+
+        if ($current && $this->isPreRelease($plugin->plugin_version) && !$this->isPreRelease($current['name'])) {
+            // Same as on Modrinth: a dev build predates the release it loosely matches.
+            $current = ['id' => null, 'name' => $plugin->plugin_version, 'releaseDate' => $current['releaseDate'] - 1];
+        }
 
         if (!$current && !$pinned) {
             return $this->result(ServerPlugin::STATUS_NOT_FOUND);
@@ -350,6 +369,22 @@ class PluginSourceResolver
             ->timeout(20)
             ->retry(3, fn (int $attempt) => $attempt * 3000, fn ($exception) => $exception instanceof \Illuminate\Http\Client\ConnectionException
                 || in_array($exception->response?->status(), [429, 500, 502, 503, 504], true), false);
+    }
+
+    /**
+     * Finds the upstream entry for the installed version, preferring an exact match over a loose one.
+     */
+    private function findInstalled(array $versions, string $field, ?string $installed): ?array
+    {
+        $exact = $this->normaliseVersion($installed ?? '');
+
+        return Arr::first($versions, fn ($v) => $this->normaliseVersion($v[$field] ?? '') === $exact)
+            ?? Arr::first($versions, fn ($v) => $this->versionsMatch($v[$field] ?? '', $installed ?? ''));
+    }
+
+    public function isPreRelease(string $version): bool
+    {
+        return (bool) preg_match('/(snapshot|dev|alpha|beta|pre|rc\d*\b|nightly)/i', $version);
     }
 
     /**

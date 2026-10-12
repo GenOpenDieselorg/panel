@@ -29,14 +29,16 @@ const CompatBadge = ({ compatible, gameVersion }: { compatible: boolean | null; 
     if (!gameVersion) return null;
 
     if (compatible === null) {
-        return <span className={'text-2xs rounded px-1.5 py-0.5 bg-gray-600 text-gray-300'}>zgodność nieznana</span>;
+        return (
+            <span className={'text-2xs rounded px-1.5 py-0.5 bg-gray-600 text-gray-300'}>compatibility unknown</span>
+        );
     }
 
     return compatible ? (
         <span className={'text-2xs rounded px-1.5 py-0.5 bg-green-600 text-green-50'}>{gameVersion}</span>
     ) : (
         <span className={'text-2xs rounded px-1.5 py-0.5 bg-yellow-600 text-yellow-50'}>
-            nie testowany na {gameVersion}
+            not tested on {gameVersion}
         </span>
     );
 };
@@ -131,18 +133,18 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
             open={open}
             onClose={onClose}
             preventExternalClose={installing}
-            title={'Dodaj plugin'}
-            description={'Pluginy Minecraft z Modrinth lub SpigotMC, dopasowane do wersji serwera.'}
+            title={'Add plugin'}
+            description={'Minecraft plugins from Modrinth or SpigotMC, matched to the server version.'}
         >
             <SpinnerOverlay visible={installing} size={'large'}>
-                Pobieranie i instalacja...
+                Downloading and installing...
             </SpinnerOverlay>
             <FlashMessageRender byKey={FLASH_KEY} className={'mb-4'} />
 
             {installed ? (
                 <div className={'rounded bg-green-600/20 border border-green-600 p-4 text-sm text-green-50'}>
-                    Zainstalowano <strong>{installed.pluginName}</strong> {installed.pluginVersion} jako{' '}
-                    <code>plugins/{installed.fileName}</code>. Zrestartuj serwer, żeby go załadować.
+                    Installed <strong>{installed.pluginName}</strong> {installed.pluginVersion} as{' '}
+                    <code>plugins/{installed.fileName}</code>. Restart the server to load it.
                 </div>
             ) : (
                 <>
@@ -151,20 +153,20 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                             <Input
                                 value={gameVersion}
                                 placeholder={'1.21.8'}
-                                title={'Wersja Minecraft serwera'}
+                                title={'Server Minecraft version'}
                                 onChange={(e) => onGameVersionChange(e.currentTarget.value)}
                             />
                         </div>
                         <div className={'flex-1 min-w-[10rem]'}>
                             <Input
                                 value={query}
-                                placeholder={'Nazwa pluginu...'}
+                                placeholder={'Plugin name...'}
                                 autoFocus
                                 onChange={(e) => setQuery(e.currentTarget.value)}
                             />
                         </div>
                         <Button type={'submit'} disabled={!query.trim() || searching}>
-                            Szukaj
+                            Search
                         </Button>
                     </form>
                     <div className={'flex gap-1 mt-3'}>
@@ -182,10 +184,10 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                         ))}
                         <span className={'ml-auto self-center text-2xs text-gray-400'}>
                             {source === 'spigot'
-                                ? 'Tylko darmowe zasoby hostowane na SpigotMC.'
+                                ? 'Only free resources hosted on SpigotMC.'
                                 : gameVersion
-                                ? `Tylko wersje dla MC ${gameVersion}.`
-                                : 'Podaj wersję MC, żeby filtrować.'}
+                                ? `Only versions for MC ${gameVersion}.`
+                                : 'Enter an MC version to filter.'}
                         </span>
                     </div>
 
@@ -197,7 +199,7 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                                     onClick={() => setSelected(null)}
                                     className={'text-sm text-cyan-400 hover:underline mb-2'}
                                 >
-                                    ← wyniki
+                                    ← results
                                 </button>
                                 <p className={'text-gray-100 font-medium'}>
                                     {selected.title}{' '}
@@ -207,14 +209,14 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                                         rel={'noopener noreferrer'}
                                         className={'text-xs text-cyan-400 hover:underline'}
                                     >
-                                        strona projektu
+                                        project page
                                     </a>
                                 </p>
                                 {!versions ? (
                                     <Spinner centered />
                                 ) : !versions.length ? (
                                     <p className={'text-sm text-gray-400 py-4'}>
-                                        Brak wersji do pobrania{gameVersion ? ` dla MC ${gameVersion}` : ''}.
+                                        No downloadable versions{gameVersion ? ` for MC ${gameVersion}` : ''}.
                                     </p>
                                 ) : (
                                     versions.map((version) => (
@@ -244,7 +246,7 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                                                 />
                                             )}
                                             <Button size={Button.Sizes.Small} onClick={() => install(version)}>
-                                                Zainstaluj
+                                                Install
                                             </Button>
                                         </div>
                                     ))
@@ -253,7 +255,7 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                         ) : searching ? (
                             <Spinner centered />
                         ) : results && !results.length ? (
-                            <p className={'text-sm text-gray-400 text-center py-4'}>Nic nie znaleziono.</p>
+                            <p className={'text-sm text-gray-400 text-center py-4'}>Nothing found.</p>
                         ) : (
                             results?.map((result) => (
                                 <button
@@ -280,7 +282,7 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                                     </div>
                                     <div className={'flex flex-col items-end gap-1 flex-none'}>
                                         <span className={'text-2xs text-gray-400'}>
-                                            {formatDownloads(result.downloads)} pobrań
+                                            {formatDownloads(result.downloads)} downloads
                                         </span>
                                         {result.source === 'spigot' && (
                                             <CompatBadge compatible={result.compatible} gameVersion={gameVersion} />
@@ -293,7 +295,7 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                 </>
             )}
             <Dialog.Footer>
-                <Button.Text onClick={onClose}>Zamknij</Button.Text>
+                <Button.Text onClick={onClose}>Close</Button.Text>
             </Dialog.Footer>
         </Dialog>
     );

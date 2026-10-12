@@ -24,7 +24,7 @@ export default ({ fileName }: { fileName: string }) => {
                 <button
                     type={'button'}
                     className={styles.plugin_blacklist_button}
-                    title={'Blacklista: nie sprawdzaj tego pluginu na żadnym serwerze'}
+                    title={'Blacklist: stop checking this plugin on every server'}
                     onClick={(e) => {
                         e.stopPropagation();
                         blacklist(fileName);
@@ -39,7 +39,7 @@ export default ({ fileName }: { fileName: string }) => {
                     [styles.source_modrinth]: plugin.source === 'modrinth',
                     [styles.source_spigot]: plugin.source === 'spigot',
                 })}
-                title={`Aktualizacja ${plugin.pluginVersion} → ${plugin.latestVersion} (${sourceLabel(plugin.source)})`}
+                title={`Update ${plugin.pluginVersion} → ${plugin.latestVersion} (${sourceLabel(plugin.source)})`}
                 onClick={(e) => {
                     e.stopPropagation();
                     open(fileName);

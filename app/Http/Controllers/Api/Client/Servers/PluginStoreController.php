@@ -75,7 +75,7 @@ class PluginStoreController extends ClientApiController
         try {
             return $callback();
         } catch (\RuntimeException|\Illuminate\Http\Client\ConnectionException $exception) {
-            throw new DisplayException('Nie udało się połączyć z Modrinth/SpigotMC: ' . $exception->getMessage());
+            throw new DisplayException('Could not reach Modrinth/SpigotMC: ' . $exception->getMessage());
         }
     }
 }

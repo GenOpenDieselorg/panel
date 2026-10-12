@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import pl from 'date-fns/locale/pl';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowCircleUp, faPlus, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/components/elements/button/index';
@@ -44,32 +43,32 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                     className={'flex items-center gap-2 text-green-400 hover:text-green-300'}
                 >
                     <FontAwesomeIcon icon={faArrowCircleUp} />
-                    {updates === 1 ? '1 plugin ma aktualizację' : `${updates} pluginów ma aktualizacje`}
+                    {updates === 1 ? '1 plugin has an update' : `${updates} plugins have updates`}
                 </button>
             ) : (
                 <span className={'text-gray-300'}>
                     {data?.lastCheckedAt
-                        ? 'Wszystkie rozpoznane pluginy są aktualne.'
-                        : 'Pluginy nie były jeszcze sprawdzane.'}
+                        ? 'All recognised plugins are up to date.'
+                        : 'Plugins have not been checked yet.'}
                 </span>
             )}
             <span className={'text-xs text-gray-400'}>
                 {checking
-                    ? 'Sprawdzanie w toku…'
+                    ? 'Checking…'
                     : data?.lastCheckedAt
-                    ? `Sprawdzono ${formatDistanceToNow(data.lastCheckedAt, { addSuffix: true, locale: pl })}`
-                    : 'Sprawdzanie odbywa się automatycznie raz dziennie.'}
+                    ? `Checked ${formatDistanceToNow(data.lastCheckedAt, { addSuffix: true })}`
+                    : 'Plugins are checked automatically once a day.'}
             </span>
             <div className={'flex gap-2 ml-auto'}>
                 {rootAdmin && (
                     <Button.Text size={Button.Sizes.Small} onClick={() => setRulesOpen(true)}>
-                        Blacklista i linki
+                        Blacklist & links
                     </Button.Text>
                 )}
                 <Can action={'file.create'}>
                     <Button size={Button.Sizes.Small} onClick={() => setAddOpen(true)}>
                         <FontAwesomeIcon icon={faPlus} className={'mr-2'} />
-                        Dodaj plugin
+                        Add plugin
                     </Button>
                     <Button
                         size={Button.Sizes.Small}
@@ -78,7 +77,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                         onClick={onCheck}
                     >
                         <FontAwesomeIcon icon={faSyncAlt} spin={checking} className={'mr-2'} />
-                        Sprawdź teraz
+                        Check now
                     </Button>
                 </Can>
             </div>

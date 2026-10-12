@@ -110,7 +110,7 @@ class PluginUpdateCheckService
         ]);
 
         if ($row->file_size > self::MAX_JAR_BYTES) {
-            $row->fill(['status' => ServerPlugin::STATUS_UNREADABLE, 'error' => 'Plik jest zbyt duży do sprawdzenia.']);
+            $row->fill(['status' => ServerPlugin::STATUS_UNREADABLE, 'error' => 'The file is too large to inspect.']);
 
             return;
         }
@@ -124,7 +124,7 @@ class PluginUpdateCheckService
             $meta = $this->inspector->inspect($temp);
 
             if (!$meta) {
-                $row->fill(['status' => ServerPlugin::STATUS_UNREADABLE, 'error' => 'Brak plugin.yml w pliku jar.']);
+                $row->fill(['status' => ServerPlugin::STATUS_UNREADABLE, 'error' => 'No plugin.yml in the jar.']);
 
                 return;
             }

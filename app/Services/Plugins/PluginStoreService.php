@@ -65,7 +65,7 @@ class PluginStoreService
             // Spiget can only serve the newest file of a resource, so there is exactly one choice.
             return [[
                 'id' => (string) ($latest['id'] ?? 'latest'),
-                'name' => $latest['name'] ?? 'najnowsza',
+                'name' => $latest['name'] ?? 'latest',
                 'type' => 'release',
                 'published_at' => isset($latest['releaseDate']) ? date(DATE_ATOM, $latest['releaseDate']) : null,
                 'game_versions' => $resource['testedVersions'] ?? [],
@@ -102,7 +102,7 @@ class PluginStoreService
         if ($source === PluginSourceResolver::SOURCE_SPIGOT) {
             $resource = $this->resolver->getJson(sprintf('%s/resources/%d', PluginSourceResolver::SPIGET_API, (int) $project));
             if (!$resource || !$this->spigotDownloadable($resource)) {
-                throw new DisplayException('Tego zasobu nie da się pobrać automatycznie (premium lub link zewnętrzny).');
+                throw new DisplayException('This resource cannot be downloaded automatically (premium or external link).');
             }
 
             $url = sprintf('%s/resources/%d/download', PluginSourceResolver::SPIGET_API, (int) $project);
@@ -112,7 +112,7 @@ class PluginStoreService
             $file = $version ? $this->modrinthJar($version) : null;
 
             if (!$file || ($version['project_id'] ?? null) !== $this->modrinthProjectId($project)) {
-                throw new DisplayException('Nie znaleziono wybranej wersji na Modrinth.');
+                throw new DisplayException('The selected version was not found on Modrinth.');
             }
 
             $url = $file['url'];
@@ -126,7 +126,7 @@ class PluginStoreService
 
             $meta = $this->inspector->inspect($temp);
             if (!$meta) {
-                throw new DisplayException('Pobrany plik nie jest pluginem Minecraft (brak plugin.yml).');
+                throw new DisplayException('The downloaded file is not a Minecraft plugin (no plugin.yml).');
             }
 
             $this->checkService->index($server);
@@ -138,7 +138,7 @@ class PluginStoreService
 
             if ($installed) {
                 throw new DisplayException(sprintf(
-                    'Plugin %s jest już zainstalowany (%s, wersja %s). Użyj aktualizacji zamiast instalacji.',
+                    '%s is already installed (%s, version %s). Update it instead of installing it again.',
                     $meta['name'],
                     $installed->file_name,
                     $installed->plugin_version
@@ -148,7 +148,7 @@ class PluginStoreService
             $fileName = $this->resolver->safeFileName($fileName ?: sprintf('%s-%s.jar', $meta['name'], $meta['version']));
             $existing = collect($this->fileRepository->setServer($server)->getDirectory(PluginUpdateCheckService::PLUGIN_DIRECTORY))->pluck('name');
             if ($existing->contains($fileName)) {
-                throw new DisplayException("Plik $fileName już istnieje w /plugins.");
+                throw new DisplayException("$fileName already exists in /plugins.");
             }
 
             $this->fileRepository->writeFile(PluginUpdateCheckService::PLUGIN_DIRECTORY . '/' . $fileName, $temp);

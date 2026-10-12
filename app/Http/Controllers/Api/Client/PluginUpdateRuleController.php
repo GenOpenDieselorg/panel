@@ -66,7 +66,7 @@ class PluginUpdateRuleController extends ClientApiController
 
             // A very short prefix would silently blacklist unrelated plugins on every server.
             if (strlen($pattern) < 3) {
-                throw new DisplayException('Wzorzec blacklisty musi mieć co najmniej 3 litery lub cyfry.');
+                throw new DisplayException('A blacklist pattern needs at least 3 letters or digits.');
             }
 
             $key = PluginUpdateRule::blacklistKey($pattern);
@@ -75,7 +75,7 @@ class PluginUpdateRuleController extends ClientApiController
         if ($data['type'] === PluginUpdateRule::TYPE_LINK) {
             $parsed = $this->resolver->parseProjectUrl($data['url']);
             if (!$parsed) {
-                throw new DisplayException('Nie rozpoznano linku. Podaj adres projektu z modrinth.com/plugin/... albo spigotmc.org/resources/...');
+                throw new DisplayException('Link not recognised. Use a project URL from modrinth.com/plugin/... or spigotmc.org/resources/...');
             }
 
             $attributes = array_merge($attributes, $parsed, ['project_url' => trim($data['url'])]);
@@ -147,7 +147,7 @@ class PluginUpdateRuleController extends ClientApiController
     private function authorizeAdmin(Request $request): void
     {
         if (!$request->user()->root_admin) {
-            throw new AccessDeniedHttpException('Tylko administrator może zmieniać reguły aktualizacji pluginów.');
+            throw new AccessDeniedHttpException('Only administrators can change plugin update rules.');
         }
     }
 }
