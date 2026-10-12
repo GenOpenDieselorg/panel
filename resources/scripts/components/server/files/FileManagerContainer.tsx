@@ -60,9 +60,6 @@ const directoriesFirst = (a: FileObject, b: FileObject): number => (a.isFile ===
 // ordering a large directory. Building it once and reusing `compare` avoids that entirely.
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-// The logs view orders by creation time, which is deliberately not offered as a manual sort mode.
-type EffectiveSortMode = SortMode | 'created_desc';
-
 interface DecoratedFile {
     file: FileObject;
     // Sort key for the date and size modes. The name modes compare names directly.
@@ -78,9 +75,10 @@ const timestamp = (date: Date): number => {
 };
 
 const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): FileObject[] => {
-    // The logs directory is always presented newest-first, by creation time, regardless of the
-    // sort mode the user selected.
-    const effectiveSortMode: EffectiveSortMode = isLogsDirectory(directory) ? 'created_desc' : sortMode;
+    // Log directories are always ordered by file name, descending, regardless of the sort mode the
+    // user selected. Rotated logs are named by date (2026-10-08-1.log.gz), so that puts the newest on
+    // top, with latest.log first of all.
+    const effectiveSortMode: SortMode = isLogsDirectory(directory) ? 'name_desc' : sortMode;
 
     // Deduplicate by name in a single pass. The previous adjacent-pair check only caught duplicates
     // while the list happened to be name-ordered, so it silently did nothing in the date modes.
@@ -94,9 +92,7 @@ const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): 
         // Each sort key is computed exactly once here. Reading it inside the comparator instead
         // would call getTime() O(n log n) times over the course of the sort.
         let value = 0;
-        if (effectiveSortMode === 'created_desc') {
-            value = timestamp(file.createdAt);
-        } else if (effectiveSortMode === 'modified_desc') {
+        if (effectiveSortMode === 'modified_desc') {
             value = timestamp(file.modifiedAt);
         } else if (effectiveSortMode === 'size_desc') {
             value = file.size;
@@ -106,7 +102,6 @@ const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): 
     }
 
     switch (effectiveSortMode) {
-        case 'created_desc':
         case 'modified_desc':
             // Newest first. Directories stay interleaved so the ordering remains purely temporal.
             decorated.sort((a, b) => b.value - a.value);

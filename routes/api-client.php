@@ -92,6 +92,7 @@ Route::group([
     Route::group(['prefix' => '/files'], function () {
         Route::get('/list', [Client\Servers\FileController::class, 'directory']);
         Route::get('/contents', [Client\Servers\FileController::class, 'contents']);
+        Route::get('/log', Client\Servers\LogFileController::class);
         Route::get('/download', [Client\Servers\FileController::class, 'download']);
         Route::put('/rename', [Client\Servers\FileController::class, 'rename']);
         Route::post('/copy', [Client\Servers\FileController::class, 'copy']);

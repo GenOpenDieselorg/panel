@@ -23,10 +23,12 @@ import CodemirrorEditor from '@/components/elements/CodemirrorEditor';
 import { getStructuredValidationSummary, validateStructuredFileContent } from '@/lib/structuredFileValidation';
 import { Dialog } from '@/components/elements/dialog';
 import { Button as DialogButton } from '@/components/elements/button/index';
+import LogViewer from '@/components/server/files/logs/LogViewer';
+import { isLogFile } from '@/lib/logFiles';
 
 const getNewFileDraftKey = (uuid: string, directory: string) => `pterodactyl:new-file:${uuid}:${directory}`;
 
-export default () => {
+const FileEditor = () => {
     const [error, setError] = useState('');
     const { action } = useParams<{ action: 'new' | string }>();
     const [loading, setLoading] = useState(action === 'edit');
@@ -238,4 +240,12 @@ export default () => {
             </div>
         </PageContentBlock>
     );
+};
+
+export default () => {
+    const { action } = useParams<{ action: 'new' | string }>();
+    const { hash } = useLocation();
+
+    // Logs open read-only in the log viewer, which also handles rotated .log.gz files.
+    return action === 'edit' && isLogFile(hashToPath(hash)) ? <LogViewer /> : <FileEditor />;
 };

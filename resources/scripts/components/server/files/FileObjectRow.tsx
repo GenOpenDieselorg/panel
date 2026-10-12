@@ -15,6 +15,7 @@ import { join } from 'pathe';
 import { bytesToString } from '@/lib/formatters';
 import styles from './style.module.css';
 import classNames from 'classnames';
+import { isLogFile } from '@/lib/logFiles';
 import PluginUpdateButton from '@/components/server/files/plugins/PluginUpdateButton';
 import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
 
@@ -24,8 +25,9 @@ const Clickable: React.FC<{ file: FileObject }> = memo(({ file, children }) => {
     const directory = ServerContext.useStoreState((state) => state.files.directory);
 
     const match = useRouteMatch();
+    const opensInViewer = file.isFile && (file.isEditable() || isLogFile(join(directory, file.name)));
 
-    return (file.isFile && (!file.isEditable() || !canReadContents)) || (!file.isFile && !canRead) ? (
+    return (file.isFile && (!opensInViewer || !canReadContents)) || (!file.isFile && !canRead) ? (
         <div className={styles.details}>{children}</div>
     ) : (
         <NavLink
