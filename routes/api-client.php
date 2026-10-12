@@ -114,6 +114,13 @@ Route::group([
         Route::post('/update', [Client\Servers\PluginUpdateController::class, 'update']);
     });
 
+    Route::group(['prefix' => '/plugin-store'], function () {
+        Route::get('/game-version', [Client\Servers\PluginStoreController::class, 'gameVersion']);
+        Route::get('/search', [Client\Servers\PluginStoreController::class, 'search']);
+        Route::get('/versions', [Client\Servers\PluginStoreController::class, 'versions']);
+        Route::post('/install', [Client\Servers\PluginStoreController::class, 'install']);
+    });
+
     Route::group(['prefix' => '/schedules'], function () {
         Route::get('/', [Client\Servers\ScheduleController::class, 'index']);
         Route::middleware([ResourceLimit::Schedule->middleware()])

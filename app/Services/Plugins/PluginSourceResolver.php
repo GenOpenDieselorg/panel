@@ -23,10 +23,10 @@ class PluginSourceResolver
     public const SOURCE_MODRINTH = 'modrinth';
     public const SOURCE_SPIGOT = 'spigot';
 
-    private const MODRINTH_API = 'https://api.modrinth.com/v2';
-    private const SPIGET_API = 'https://api.spiget.org/v2';
+    public const MODRINTH_API = 'https://api.modrinth.com/v2';
+    public const SPIGET_API = 'https://api.spiget.org/v2';
 
-    private const LOADERS = [
+    public const LOADERS = [
         'bukkit' => ['paper', 'spigot', 'bukkit', 'purpur', 'folia'],
         'paper' => ['paper', 'purpur', 'folia'],
         'bungeecord' => ['bungeecord', 'waterfall'],
@@ -323,7 +323,7 @@ class PluginSourceResolver
         return is_array($versions) ? array_values(array_filter($versions, fn ($v) => isset($v['id'], $v['name']))) : [];
     }
 
-    private function getJson(string $url, array $query = []): ?array
+    public function getJson(string $url, array $query = []): ?array
     {
         $cacheKey = $url . '?' . http_build_query($query);
         if (array_key_exists($cacheKey, $this->requestCache)) {
@@ -396,7 +396,7 @@ class PluginSourceResolver
         return trim(preg_split('/\s*(?:\||\s-\s|–|—|\[|\(|:)/u', $title, 2)[0] ?? $title);
     }
 
-    private function safeFileName(string $name): string
+    public function safeFileName(string $name): string
     {
         return preg_replace('/[^A-Za-z0-9._+-]+/', '_', $name);
     }

@@ -79,7 +79,7 @@ class PluginUpdateService
         )->first();
     }
 
-    private function download(string $url, string $destination): void
+    public function download(string $url, string $destination): void
     {
         try {
             $response = $this->resolver->http()

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import pl from 'date-fns/locale/pl';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowCircleUp, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
+import { faArrowCircleUp, faPlus, faSyncAlt } from '@fortawesome/free-solid-svg-icons';
 import { Button } from '@/components/elements/button/index';
 import Can from '@/components/elements/Can';
 import { useStoreState } from '@/state/hooks';
@@ -10,6 +10,7 @@ import { ServerContext } from '@/state/server';
 import { useFlashKey } from '@/plugins/useFlash';
 import { checkPluginUpdates, PluginUpdateList } from '@/api/server/plugins/pluginUpdates';
 import PluginUpdateRulesModal from '@/components/server/files/plugins/PluginUpdateRulesModal';
+import AddPluginModal from '@/components/server/files/plugins/AddPluginModal';
 
 interface Props {
     data: PluginUpdateList | undefined;
@@ -23,6 +24,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
     const rootAdmin = useStoreState((state) => state.user.data!.rootAdmin);
     const { clearAndAddHttpError } = useFlashKey('files');
     const [rulesOpen, setRulesOpen] = useState(false);
+    const [addOpen, setAddOpen] = useState(false);
 
     const updates = data?.plugins.filter((plugin) => plugin.status === 'update_available').length ?? 0;
     const checking = data?.checking ?? false;
@@ -65,6 +67,10 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                     </Button.Text>
                 )}
                 <Can action={'file.create'}>
+                    <Button size={Button.Sizes.Small} onClick={() => setAddOpen(true)}>
+                        <FontAwesomeIcon icon={faPlus} className={'mr-2'} />
+                        Dodaj plugin
+                    </Button>
                     <Button
                         size={Button.Sizes.Small}
                         variant={Button.Variants.Secondary}
@@ -76,6 +82,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                     </Button>
                 </Can>
             </div>
+            <AddPluginModal open={addOpen} onClose={() => setAddOpen(false)} onInstalled={onChanged} />
             {rootAdmin && (
                 <PluginUpdateRulesModal open={rulesOpen} onClose={() => setRulesOpen(false)} onChanged={onChanged} />
             )}
