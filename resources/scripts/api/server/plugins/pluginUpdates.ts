@@ -27,6 +27,8 @@ export interface PluginUpdate {
 }
 
 export interface PluginUpdateList {
+    // False when "Plugin tracking" is off for the server's dashboard section; no results are returned then.
+    tracked: boolean;
     checking: boolean;
     lastCheckedAt: Date | null;
     plugins: PluginUpdate[];
@@ -66,6 +68,7 @@ export const getPluginUpdates = async (uuid: string): Promise<PluginUpdateList> 
     const { data } = await http.get(`/api/client/servers/${uuid}/plugin-updates`);
 
     return {
+        tracked: data.tracked !== false,
         checking: data.checking,
         lastCheckedAt: data.last_checked_at ? new Date(data.last_checked_at) : null,
         plugins: (data.plugins || []).map(rawDataToPluginUpdate),

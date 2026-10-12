@@ -4,6 +4,7 @@ namespace Pterodactyl\Console\Commands\Plugins;
 
 use Illuminate\Console\Command;
 use Pterodactyl\Models\Server;
+use Pterodactyl\Services\Plugins\PluginTrackingService;
 use Pterodactyl\Services\Plugins\PluginUpdateCheckService;
 
 class CheckPluginUpdatesCommand extends Command
@@ -13,7 +14,7 @@ class CheckPluginUpdatesCommand extends Command
 
     protected $description = 'Indexes the plugin jars of every server and looks up newer versions on Modrinth and SpigotMC.';
 
-    public function handle(PluginUpdateCheckService $service): int
+    public function handle(PluginUpdateCheckService $service, PluginTrackingService $tracking): int
     {
         $servers = Server::query()
             ->with('node')
@@ -22,6 +23,13 @@ class CheckPluginUpdatesCommand extends Command
             ->get();
 
         foreach ($servers as $server) {
+            // Only servers with "Plugin tracking" switched on in a dashboard section are checked.
+            if (!$tracking->isTracked($server)) {
+                $this->line(sprintf('%d %s: skipped (plugin tracking is off)', $server->id, $server->name));
+
+                continue;
+            }
+
             try {
                 $plugins = $service->check($server);
             } catch (\Throwable $exception) {

@@ -27,6 +27,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
 
     const updates = data?.plugins.filter((plugin) => plugin.status === 'update_available').length ?? 0;
     const checking = data?.checking ?? false;
+    const tracked = data?.tracked ?? true;
 
     const onCheck = () => {
         checkPluginUpdates(uuid)
@@ -36,7 +37,12 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
 
     return (
         <div className={'flex flex-wrap items-center gap-3 mb-3 px-4 py-2 rounded bg-gray-700 text-sm'}>
-            {updates > 0 ? (
+            {!tracked ? (
+                <span className={'text-gray-400'}>
+                    Plugin update checks are off for this server. Turn on “Plugin tracking” for its section on the
+                    dashboard to enable them.
+                </span>
+            ) : updates > 0 ? (
                 <button
                     type={'button'}
                     onClick={onShowFirst}
@@ -52,7 +58,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                         : 'Plugins have not been checked yet.'}
                 </span>
             )}
-            <span className={'text-xs text-gray-400'}>
+            <span className={`text-xs text-gray-400 ${tracked ? '' : 'hidden'}`}>
                 {checking
                     ? 'Checking…'
                     : data?.lastCheckedAt
@@ -73,6 +79,7 @@ export default ({ data, onChanged, onShowFirst }: Props) => {
                     <Button
                         size={Button.Sizes.Small}
                         variant={Button.Variants.Secondary}
+                        className={tracked ? '' : 'hidden'}
                         disabled={checking}
                         onClick={onCheck}
                     >

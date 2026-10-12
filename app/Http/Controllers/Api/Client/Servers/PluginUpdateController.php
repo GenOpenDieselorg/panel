@@ -10,6 +10,8 @@ use Pterodactyl\Models\ServerPlugin;
 use Illuminate\Support\Facades\Cache;
 use Pterodactyl\Models\PluginUpdateRule;
 use Pterodactyl\Services\Plugins\PluginUpdateService;
+use Pterodactyl\Exceptions\DisplayException;
+use Pterodactyl\Services\Plugins\PluginTrackingService;
 use Pterodactyl\Jobs\Plugins\CheckServerPluginUpdatesJob;
 use Pterodactyl\Http\Controllers\Api\Client\ClientApiController;
 use Pterodactyl\Http\Requests\Api\Client\Servers\Plugins\UpdatePluginRequest;
@@ -18,8 +20,10 @@ use Pterodactyl\Http\Requests\Api\Client\Servers\Plugins\CheckPluginUpdatesReque
 
 class PluginUpdateController extends ClientApiController
 {
-    public function __construct(private PluginUpdateService $updateService)
-    {
+    public function __construct(
+        private PluginUpdateService $updateService,
+        private PluginTrackingService $tracking,
+    ) {
         parent::__construct();
     }
 
@@ -28,11 +32,16 @@ class PluginUpdateController extends ClientApiController
      */
     public function index(ListPluginUpdatesRequest $request, Server $server): JsonResponse
     {
+        if (!$this->tracking->isTracked($server)) {
+            return new JsonResponse(['tracked' => false, 'checking' => false, 'last_checked_at' => null, 'plugins' => []]);
+        }
+
         $plugins = ServerPlugin::query()->where('server_id', $server->id)->orderBy('file_name')->get();
 
         $rules = PluginUpdateRule::query()->get();
 
         return new JsonResponse([
+            'tracked' => true,
             'checking' => Cache::has(CheckServerPluginUpdatesJob::cacheKey($server)),
             'last_checked_at' => $plugins->max('checked_at')?->toAtomString(),
             'plugins' => $plugins->map(fn (ServerPlugin $plugin) => $this->transform($plugin, PluginUpdateRule::findFor($plugin, $rules)))->values(),
@@ -44,6 +53,10 @@ class PluginUpdateController extends ClientApiController
      */
     public function check(CheckPluginUpdatesRequest $request, Server $server): JsonResponse
     {
+        if (!$this->tracking->isTracked($server)) {
+            throw new DisplayException('Plugin tracking is off for this server. Turn it on for its section on the dashboard.');
+        }
+
         if (Cache::add(CheckServerPluginUpdatesJob::cacheKey($server), true, now()->addMinutes(30))) {
             CheckServerPluginUpdatesJob::dispatch($server);
         }
