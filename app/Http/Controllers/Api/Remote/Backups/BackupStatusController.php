@@ -124,6 +124,7 @@ class BackupStatusController extends Controller
             Cache::put($cacheKey, $state, now()->addHours(24));
         } elseif (!$request->boolean('successful') && Cache::has($cacheKey)) {
             Cache::forget($cacheKey);
+            CreateServerFromBackupService::untrackClone($model->server->id);
         }
 
         Activity::event($request->boolean('successful') ? 'server:backup.restore-complete' : 'server.backup.restore-failed')

@@ -18,6 +18,12 @@ class CreateServerFromBackupService
 {
     public const CACHE_PREFIX = 'backup_clone_';
 
+    /**
+     * Cache keys cannot be enumerated, so the ids of clones that are currently
+     * restoring are tracked in a separate index for the watchdog to walk.
+     */
+    public const ACTIVE_INDEX_KEY = 'backup_clone_active';
+
     public function __construct(
         private ServerCreationService $serverCreationService,
         private DownloadLinkService $downloadLinkService,
@@ -123,7 +129,14 @@ class CreateServerFromBackupService
             'plugin_mode' => $pluginMode === 'keep' ? 'keep' : 'remove',
             'plugin_selection' => $this->sanitizePluginSelection($pluginSelection),
             'paper_version' => $paperVersion !== null && trim($paperVersion) !== '' ? trim($paperVersion) : null,
+            // Progress bookkeeping for the watchdog and the restore progress bar.
+            'expected_bytes' => (int) $backup->bytes,
+            'progress_bytes' => 0,
+            'progress_at' => now()->getTimestamp(),
+            'started_at' => now()->getTimestamp(),
         ], now()->addHours(24));
+
+        self::trackClone($newServer->id);
 
         return $newServer;
     }
@@ -163,6 +176,61 @@ class CreateServerFromBackupService
         $state = self::getCloneState($serverId);
 
         return is_array($state) && ($state['status'] ?? null) === 'awaiting_plugins';
+    }
+
+    /**
+     * Adds a server to the index of clones the watchdog should keep an eye on.
+     */
+    public static function trackClone(int $serverId): void
+    {
+        $ids = self::activeClones();
+
+        if (!in_array($serverId, $ids, true)) {
+            $ids[] = $serverId;
+        }
+
+        Cache::put(self::ACTIVE_INDEX_KEY, $ids, now()->addDays(7));
+    }
+
+    /**
+     * Drops a server from the watchdog index once its clone is finished, failed
+     * or cleaned up.
+     */
+    public static function untrackClone(int $serverId): void
+    {
+        Cache::put(
+            self::ACTIVE_INDEX_KEY,
+            array_values(array_diff(self::activeClones(), [$serverId])),
+            now()->addDays(7)
+        );
+    }
+
+    /**
+     * @return int[]
+     */
+    public static function activeClones(): array
+    {
+        return array_values(array_filter(
+            (array) Cache::get(self::ACTIVE_INDEX_KEY, []),
+            fn ($id) => is_int($id)
+        ));
+    }
+
+    /**
+     * Records how far the restore has got so the watchdog can tell a slow
+     * transfer apart from a dead one.
+     */
+    public static function recordProgress(int $serverId, int $bytes): void
+    {
+        $state = self::getCloneState($serverId);
+        if (!is_array($state)) {
+            return;
+        }
+
+        $state['progress_bytes'] = $bytes;
+        $state['progress_at'] = now()->getTimestamp();
+
+        Cache::put(self::cacheKey($serverId), $state, now()->addHours(24));
     }
 
     /**

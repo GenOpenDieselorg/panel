@@ -11,6 +11,7 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Pterodactyl\Services\Telemetry\TelemetryCollectionService;
 use Pterodactyl\Console\Commands\Schedule\ProcessRunnableCommand;
 use Pterodactyl\Console\Commands\Node\SyncNodeRealDiskCommand;
+use Pterodactyl\Console\Commands\Backup\CloneRestoreWatchdogCommand;
 use Pterodactyl\Console\Commands\Maintenance\PruneOrphanedBackupsCommand;
 use Pterodactyl\Console\Commands\Maintenance\CleanServiceBackupFilesCommand;
 
@@ -35,6 +36,10 @@ class Kernel extends ConsoleKernel
         // Execute scheduled commands for servers every minute, as if there was a normal cron running.
         $schedule->command(ProcessRunnableCommand::class)->everyMinute()->withoutOverlapping();
         $schedule->command(CleanServiceBackupFilesCommand::class)->daily();
+
+        // Release servers whose clone-from-backup restore has stopped making progress,
+        // since Wings never reports back when a restore hangs.
+        $schedule->command(CloneRestoreWatchdogCommand::class)->everyFiveMinutes()->withoutOverlapping();
 
         // Refresh the real (df-reported) disk size of each node machine for the usage monitor.
         $schedule->command(SyncNodeRealDiskCommand::class)->hourly()->withoutOverlapping();

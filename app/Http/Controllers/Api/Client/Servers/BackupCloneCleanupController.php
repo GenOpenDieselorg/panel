@@ -115,6 +115,7 @@ class BackupCloneCleanupController extends ClientApiController
         }
 
         Cache::forget(CreateServerFromBackupService::cacheKey($server->id));
+        CreateServerFromBackupService::untrackClone($server->id);
 
         return new JsonResponse([], JsonResponse::HTTP_NO_CONTENT);
     }
