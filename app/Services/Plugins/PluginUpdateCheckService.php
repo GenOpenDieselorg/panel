@@ -71,7 +71,7 @@ class PluginUpdateCheckService
             }
 
             $row->fill(['file_size' => (int) $file['size'], 'file_modified_at' => $file['modified']]);
-            $row->fill(array_fill_keys(ServerPlugin::resolutionFields(), null) + ['status' => ServerPlugin::STATUS_PENDING]);
+            $row->fill(array_merge(array_fill_keys(ServerPlugin::resolutionFields(), null), ['status' => ServerPlugin::STATUS_PENDING]));
 
             $twin = ServerPlugin::query()
                 ->where('file_name', $name)
