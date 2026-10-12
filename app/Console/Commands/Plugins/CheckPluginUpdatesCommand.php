@@ -40,6 +40,9 @@ class CheckPluginUpdatesCommand extends Command
             ));
         }
 
+        // Servers checked early in the run can now borrow matches found on later ones.
+        $this->info(sprintf('Shared matches with %d plugins on other servers.', $service->propagate()));
+
         return self::SUCCESS;
     }
 }

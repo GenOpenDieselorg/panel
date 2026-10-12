@@ -167,6 +167,45 @@ class PluginUpdateCheckService
             $plugin->fill($result + ['checked_at' => Carbon::now()])->save();
         }
 
+        $this->propagate($resolvable);
+
         return $plugins;
+    }
+
+    /**
+     * Shares identifications between servers: a plugin that could not be matched on one server
+     * takes the result of the same plugin and version that was matched on another, e.g. a
+     * PlugManX 3.0.2 jar with a different hash. Without arguments it covers the whole panel.
+     *
+     * @param Collection<int, ServerPlugin>|null $plugins
+     */
+    public function propagate(?Collection $plugins = null): int
+    {
+        $unmatched = [ServerPlugin::STATUS_NOT_FOUND, ServerPlugin::STATUS_ERROR, ServerPlugin::STATUS_PENDING];
+        $matched = [ServerPlugin::STATUS_UPDATE_AVAILABLE, ServerPlugin::STATUS_UP_TO_DATE, ServerPlugin::STATUS_NOT_DOWNLOADABLE];
+
+        $targets = ($plugins ?? ServerPlugin::query()->whereIn('status', $unmatched)->whereNotNull('plugin_key')->get())
+            ->filter(fn (ServerPlugin $plugin) => in_array($plugin->status, $unmatched, true) && $plugin->plugin_key && $plugin->plugin_version);
+
+        $count = 0;
+        foreach ($targets->groupBy(fn (ServerPlugin $plugin) => $plugin->plugin_key . "\0" . $plugin->plugin_version) as $group) {
+            $donor = ServerPlugin::query()
+                ->where('plugin_key', $group->first()->plugin_key)
+                ->where('plugin_version', $group->first()->plugin_version)
+                ->whereIn('status', $matched)
+                ->orderByDesc('checked_at')
+                ->first();
+
+            if (!$donor) {
+                continue;
+            }
+
+            foreach ($group as $plugin) {
+                $plugin->fill($donor->only(ServerPlugin::resolutionFields()) + ['checked_at' => Carbon::now()])->save();
+                ++$count;
+            }
+        }
+
+        return $count;
     }
 }
