@@ -9,6 +9,7 @@ import {
     faFileDownload,
     faLevelUpAlt,
     faPencilAlt,
+    faPuzzlePiece,
     faTrashAlt,
     IconDefinition,
 } from '@fortawesome/free-solid-svg-icons';
@@ -32,6 +33,7 @@ import decompressFiles from '@/api/server/files/decompressFiles';
 import isEqual from 'react-fast-compare';
 import ChmodFileModal from '@/components/server/files/ChmodFileModal';
 import { Dialog } from '@/components/elements/dialog';
+import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
 
 type ModalType = 'rename' | 'move' | 'chmod';
 
@@ -64,6 +66,8 @@ const FileDropdownMenu = ({ file }: { file: FileObject }) => {
     const { mutate } = useFileManagerSwr();
     const { clearAndAddHttpError, clearFlashes } = useFlash();
     const directory = ServerContext.useStoreState((state) => state.files.directory);
+    const pluginUpdates = usePluginUpdates();
+    const pluginEntry = pluginUpdates.enabled ? pluginUpdates.byFile.get(file.name) : undefined;
 
     useEventListener(`pterodactyl:files:ctx:${file.key}`, (e: CustomEvent) => {
         if (onClickRef.current) {
@@ -184,6 +188,13 @@ const FileDropdownMenu = ({ file }: { file: FileObject }) => {
                     <Can action={'file.archive'}>
                         <Row onClick={doArchive} icon={faFileArchive} title={'Archive'} />
                     </Can>
+                )}
+                {pluginEntry && (
+                    <Row
+                        onClick={() => pluginUpdates.open(file.name)}
+                        icon={faPuzzlePiece}
+                        title={'Plugin / aktualizacje'}
+                    />
                 )}
                 {file.isFile && <Row onClick={doDownload} icon={faFileDownload} title={'Download'} />}
                 <Can action={'file.delete'}>

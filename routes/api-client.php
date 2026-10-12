@@ -49,6 +49,12 @@ Route::prefix('/account')->middleware(AccountSubject::class)->group(function () 
     Route::put('/dashboard-layout', [Client\DashboardLayoutController::class, 'update']);
 });
 
+Route::prefix('/plugin-updates/rules')->group(function () {
+    Route::get('/', [Client\PluginUpdateRuleController::class, 'index']);
+    Route::post('/', [Client\PluginUpdateRuleController::class, 'store']);
+    Route::delete('/{rule}', [Client\PluginUpdateRuleController::class, 'delete'])->whereNumber('rule');
+});
+
 /*
 |--------------------------------------------------------------------------
 | Client Control API
@@ -99,6 +105,12 @@ Route::group([
             ->post('/pull', [Client\Servers\FileController::class, 'pull']);
         Route::get('/upload', Client\Servers\FileUploadController::class);
         Route::post('/search', [Client\Servers\FileSearchController::class, 'search']);
+    });
+
+    Route::group(['prefix' => '/plugin-updates'], function () {
+        Route::get('/', [Client\Servers\PluginUpdateController::class, 'index']);
+        Route::post('/check', [Client\Servers\PluginUpdateController::class, 'check']);
+        Route::post('/update', [Client\Servers\PluginUpdateController::class, 'update']);
     });
 
     Route::group(['prefix' => '/schedules'], function () {

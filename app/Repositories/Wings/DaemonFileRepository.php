@@ -51,6 +51,29 @@ class DaemonFileRepository extends DaemonRepository
     }
 
     /**
+     * Streams a file from the daemon straight into a local file, without buffering it in memory.
+     *
+     * @throws DaemonConnectionException
+     */
+    public function downloadToFile(string $path, string $destination): void
+    {
+        Assert::isInstanceOf($this->server, Server::class);
+
+        try {
+            $this->getHttpClient()->get(
+                sprintf('/api/servers/%s/files/contents', $this->server->uuid),
+                [
+                    'query' => ['file' => $path, 'download' => '1'],
+                    'sink' => $destination,
+                    'timeout' => 300,
+                ]
+            );
+        } catch (TransferException $exception) {
+            throw new DaemonConnectionException($exception);
+        }
+    }
+
+    /**
      * Reads up to the last $maxBytes of a file. For files larger than the limit,
      * the response body is streamed and only the final chunk is retained in memory.
      *

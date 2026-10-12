@@ -27,6 +27,11 @@ import { Alert } from '@/components/elements/alert';
 import { findPluginVersionConflicts } from '@/lib/pluginVersionConflicts';
 import PluginConflictScrollMarkers from '@/components/server/files/PluginConflictScrollMarkers';
 import Select from '@/components/elements/Select';
+import useSWR from 'swr';
+import { getPluginUpdates } from '@/api/server/plugins/pluginUpdates';
+import { PluginUpdatesContext } from '@/components/server/files/plugins/PluginUpdatesContext';
+import PluginUpdatesBar from '@/components/server/files/plugins/PluginUpdatesBar';
+import PluginUpdateModal from '@/components/server/files/plugins/PluginUpdateModal';
 
 const FILE_DISPLAY_LIMIT = 400;
 
@@ -127,6 +132,7 @@ const sortFiles = (files: FileObject[], directory: string, sortMode: SortMode): 
 
 export default () => {
     const id = ServerContext.useStoreState((state) => state.server.data!.id);
+    const uuid = ServerContext.useStoreState((state) => state.server.data!.uuid);
     const { hash } = useLocation();
     const { data: files, error, mutate } = useFileManagerSwr();
     const directory = ServerContext.useStoreState((state) => state.files.directory);
@@ -163,6 +169,31 @@ export default () => {
         setSelectedFiles(e.currentTarget.checked ? files?.map((file) => file.name) || [] : []);
     };
 
+    const inPluginsDirectory = isPluginsDirectory(directory);
+    const [pluginModalFile, setPluginModalFile] = useState<string | null>(null);
+    const [pluginCheckRunning, setPluginCheckRunning] = useState(false);
+    const { data: pluginUpdates, mutate: mutatePluginUpdates } = useSWR(
+        inPluginsDirectory ? `${uuid}:plugin-updates` : null,
+        () => getPluginUpdates(uuid),
+        // Poll while an on-demand check is running so the results show up as soon as it ends.
+        { refreshInterval: pluginCheckRunning ? 5000 : 0, revalidateOnFocus: false }
+    );
+
+    useEffect(() => {
+        setPluginCheckRunning(!!pluginUpdates?.checking);
+    }, [pluginUpdates?.checking]);
+
+    const pluginUpdatesByFile = new Map((pluginUpdates?.plugins || []).map((plugin) => [plugin.fileName, plugin]));
+
+    const onPluginsChanged = () => {
+        mutatePluginUpdates();
+        mutate();
+    };
+
+    const scrollToFirstPluginUpdate = () => {
+        document.querySelector('[data-plugin-update="true"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
     const scrollToPluginVersionConflict = () => {
         document
             .querySelector('[data-plugin-version-conflict="true"]')
@@ -192,100 +223,119 @@ export default () => {
 
     return (
         <ServerContentBlock title={'File Manager'} showFlashKey={'files'}>
-            <FilesSubNavigation />
-            <ErrorBoundary>
-                <div css={tw`flex flex-wrap-reverse md:flex-nowrap items-center mb-4`}>
-                    <FileManagerBreadcrumbs
-                        renderLeft={
-                            <FileActionCheckbox
-                                type={'checkbox'}
-                                css={tw`mx-4`}
-                                checked={selectedFilesLength === (files?.length === 0 ? -1 : files?.length)}
-                                onChange={onSelectAllClick}
-                            />
-                        }
-                    />
-                    <div
-                        css={tw`flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:flex-1 md:justify-end mt-4 md:mt-0`}
-                    >
-                        <div css={tw`flex items-center flex-shrink-0`}>
-                            <label
-                                htmlFor={'sort-files'}
-                                css={tw`text-xs font-medium tracking-wide uppercase text-neutral-400 mr-2 whitespace-nowrap`}
-                            >
-                                Sort by
-                            </label>
-                            <Select
-                                id={'sort-files'}
-                                value={sortMode}
-                                onChange={onSortModeChange}
-                                css={tw`w-full sm:w-auto py-2`}
-                            >
-                                <option value={'name_asc'}>Name (A–Z)</option>
-                                <option value={'name_desc'}>Name (Z–A)</option>
-                                <option value={'modified_desc'}>Last modified</option>
-                                <option value={'size_desc'}>Size (largest first)</option>
-                            </Select>
+            <PluginUpdatesContext.Provider
+                value={{ enabled: inPluginsDirectory, byFile: pluginUpdatesByFile, open: setPluginModalFile }}
+            >
+                <FilesSubNavigation />
+                <ErrorBoundary>
+                    <div css={tw`flex flex-wrap-reverse md:flex-nowrap items-center mb-4`}>
+                        <FileManagerBreadcrumbs
+                            renderLeft={
+                                <FileActionCheckbox
+                                    type={'checkbox'}
+                                    css={tw`mx-4`}
+                                    checked={selectedFilesLength === (files?.length === 0 ? -1 : files?.length)}
+                                    onChange={onSelectAllClick}
+                                />
+                            }
+                        />
+                        <div
+                            css={tw`flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:flex-1 md:justify-end mt-4 md:mt-0`}
+                        >
+                            <div css={tw`flex items-center flex-shrink-0`}>
+                                <label
+                                    htmlFor={'sort-files'}
+                                    css={tw`text-xs font-medium tracking-wide uppercase text-neutral-400 mr-2 whitespace-nowrap`}
+                                >
+                                    Sort by
+                                </label>
+                                <Select
+                                    id={'sort-files'}
+                                    value={sortMode}
+                                    onChange={onSortModeChange}
+                                    css={tw`w-full sm:w-auto py-2`}
+                                >
+                                    <option value={'name_asc'}>Name (A–Z)</option>
+                                    <option value={'name_desc'}>Name (Z–A)</option>
+                                    <option value={'modified_desc'}>Last modified</option>
+                                    <option value={'size_desc'}>Size (largest first)</option>
+                                </Select>
+                            </div>
+                            <Can action={'file.create'}>
+                                <div className={style.manager_actions}>
+                                    <FileManagerStatus />
+                                    <NewDirectoryButton />
+                                    <UploadButton />
+                                    <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
+                                        <Button>New File</Button>
+                                    </NavLink>
+                                </div>
+                            </Can>
                         </div>
-                        <Can action={'file.create'}>
-                            <div className={style.manager_actions}>
-                                <FileManagerStatus />
-                                <NewDirectoryButton />
-                                <UploadButton />
-                                <NavLink to={`/server/${id}/files/new${window.location.hash}`}>
-                                    <Button>New File</Button>
-                                </NavLink>
-                            </div>
-                        </Can>
                     </div>
-                </div>
-            </ErrorBoundary>
-            {!files ? (
-                <Spinner size={'large'} centered />
-            ) : (
-                <>
-                    {!files.length ? (
-                        <p css={tw`text-sm text-neutral-400 text-center`}>This directory seems to be empty.</p>
-                    ) : (
-                        <CSSTransition classNames={'fade'} timeout={150} appear in>
-                            <div>
-                                <PluginConflictScrollMarkers markers={pluginConflictMarkers} />
-                                {pluginVersionConflicts.length > 0 && (
-                                    <Alert type={'danger'} className={'mb-4'}>
-                                        <span className={'text-sm'}>Possible duplicate plugin versions detected.</span>
-                                        <Button
-                                            type={'button'}
-                                            size={'xsmall'}
-                                            color={'red'}
-                                            isSecondary
-                                            css={tw`ml-auto`}
-                                            onClick={scrollToPluginVersionConflict}
-                                        >
-                                            Show
-                                        </Button>
-                                    </Alert>
-                                )}
-                                {files.length > FILE_DISPLAY_LIMIT && (
-                                    <div css={tw`rounded bg-yellow-400 mb-px p-3`}>
-                                        <p css={tw`text-yellow-900 text-sm text-center`}>
-                                            This directory is too large to display in the browser, limiting the output
-                                            to the first {FILE_DISPLAY_LIMIT} files in the current sort order.
-                                        </p>
-                                    </div>
-                                )}
-                                {sortedFiles.map((file) => (
-                                    <FileObjectRow
-                                        key={file.key}
-                                        file={file}
-                                        hasPluginVersionConflict={pluginVersionConflictFiles.has(file.name)}
-                                    />
-                                ))}
-                                <MassActionsBar />
-                            </div>
-                        </CSSTransition>
-                    )}
-                </>
-            )}
+                </ErrorBoundary>
+                {!files ? (
+                    <Spinner size={'large'} centered />
+                ) : (
+                    <>
+                        {!files.length ? (
+                            <p css={tw`text-sm text-neutral-400 text-center`}>This directory seems to be empty.</p>
+                        ) : (
+                            <CSSTransition classNames={'fade'} timeout={150} appear in>
+                                <div>
+                                    <PluginConflictScrollMarkers markers={pluginConflictMarkers} />
+                                    {inPluginsDirectory && (
+                                        <PluginUpdatesBar
+                                            data={pluginUpdates}
+                                            onChanged={onPluginsChanged}
+                                            onShowFirst={scrollToFirstPluginUpdate}
+                                        />
+                                    )}
+                                    {pluginVersionConflicts.length > 0 && (
+                                        <Alert type={'danger'} className={'mb-4'}>
+                                            <span className={'text-sm'}>
+                                                Possible duplicate plugin versions detected.
+                                            </span>
+                                            <Button
+                                                type={'button'}
+                                                size={'xsmall'}
+                                                color={'red'}
+                                                isSecondary
+                                                css={tw`ml-auto`}
+                                                onClick={scrollToPluginVersionConflict}
+                                            >
+                                                Show
+                                            </Button>
+                                        </Alert>
+                                    )}
+                                    {files.length > FILE_DISPLAY_LIMIT && (
+                                        <div css={tw`rounded bg-yellow-400 mb-px p-3`}>
+                                            <p css={tw`text-yellow-900 text-sm text-center`}>
+                                                This directory is too large to display in the browser, limiting the
+                                                output to the first {FILE_DISPLAY_LIMIT} files in the current sort
+                                                order.
+                                            </p>
+                                        </div>
+                                    )}
+                                    {sortedFiles.map((file) => (
+                                        <FileObjectRow
+                                            key={file.key}
+                                            file={file}
+                                            hasPluginVersionConflict={pluginVersionConflictFiles.has(file.name)}
+                                        />
+                                    ))}
+                                    <MassActionsBar />
+                                </div>
+                            </CSSTransition>
+                        )}
+                    </>
+                )}
+                <PluginUpdateModal
+                    plugin={pluginModalFile ? pluginUpdatesByFile.get(pluginModalFile) || null : null}
+                    onClose={() => setPluginModalFile(null)}
+                    onChanged={onPluginsChanged}
+                />
+            </PluginUpdatesContext.Provider>
         </ServerContentBlock>
     );
 };

@@ -15,7 +15,7 @@
 }
 
 .file_row {
-    @apply flex items-center cursor-pointer bg-neutral-700 rounded-sm mb-px text-sm no-underline;
+    @apply relative flex items-center cursor-pointer bg-neutral-700 rounded-sm mb-px text-sm no-underline;
     @apply hover:text-neutral-100 hover:bg-neutral-600;
 
     & > .details {
@@ -31,4 +31,26 @@
     @apply border border-red-500;
 
     box-shadow: inset 0 -3px 0 rgb(239 68 68 / 90%);
+}
+
+.plugin_update_button {
+    @apply flex items-center gap-1.5 flex-none mr-2 px-2 py-1 rounded text-xs font-medium;
+    @apply bg-green-600 text-green-50 hover:bg-green-500 transition-colors;
+
+    & > .plugin_update_version {
+        @apply truncate hidden sm:inline;
+        max-width: 7rem;
+    }
+
+    /* Wide enough for a gutter beside the file list: move the button out into it. */
+    @media (min-width: 1440px) {
+        @apply absolute mr-0;
+        right: calc(100% + 0.5rem);
+        top: 50%;
+        transform: translateY(-50%);
+
+        & > .plugin_update_version {
+            @apply inline;
+        }
+    }
 }

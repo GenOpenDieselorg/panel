@@ -15,6 +15,8 @@ import { join } from 'pathe';
 import { bytesToString } from '@/lib/formatters';
 import styles from './style.module.css';
 import classNames from 'classnames';
+import PluginUpdateButton from '@/components/server/files/plugins/PluginUpdateButton';
+import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
 
 const Clickable: React.FC<{ file: FileObject }> = memo(({ file, children }) => {
     const [canRead] = usePermissions(['file.read']);
@@ -41,39 +43,46 @@ const FileObjectRow = ({
 }: {
     file: FileObject;
     hasPluginVersionConflict?: boolean;
-}) => (
-    <div
-        className={classNames(styles.file_row, { [styles.plugin_version_conflict]: hasPluginVersionConflict })}
-        data-plugin-version-conflict={hasPluginVersionConflict ? 'true' : undefined}
-        data-file-name={file.name}
-        key={file.name}
-        onContextMenu={(e) => {
-            e.preventDefault();
-            window.dispatchEvent(new CustomEvent(`pterodactyl:files:ctx:${file.key}`, { detail: e.clientX }));
-        }}
-    >
-        <SelectFileCheckbox name={file.name} />
-        <Clickable file={file}>
-            <div css={tw`flex-none text-neutral-400 ml-6 mr-4 text-lg pl-3`}>
-                {file.isFile ? (
-                    <FontAwesomeIcon
-                        icon={file.isSymlink ? faFileImport : file.isArchiveType() ? faFileArchive : faFileAlt}
-                    />
-                ) : (
-                    <FontAwesomeIcon icon={faFolder} />
-                )}
-            </div>
-            <div css={tw`flex-1 truncate`}>{file.name}</div>
-            {file.isFile && <div css={tw`w-1/6 text-right mr-4 hidden sm:block`}>{bytesToString(file.size)}</div>}
-            <div css={tw`w-1/5 text-right mr-4 hidden md:block`} title={file.modifiedAt.toString()}>
-                {Math.abs(differenceInHours(file.modifiedAt, new Date())) > 48
-                    ? format(file.modifiedAt, 'MMM do, yyyy h:mma')
-                    : formatDistanceToNow(file.modifiedAt, { addSuffix: true })}
-            </div>
-        </Clickable>
-        <FileDropdownMenu file={file} />
-    </div>
-);
+}) => {
+    const { enabled, byFile } = usePluginUpdates();
+    const hasPluginUpdate = enabled && byFile.get(file.name)?.status === 'update_available';
+
+    return (
+        <div
+            className={classNames(styles.file_row, { [styles.plugin_version_conflict]: hasPluginVersionConflict })}
+            data-plugin-version-conflict={hasPluginVersionConflict ? 'true' : undefined}
+            data-plugin-update={hasPluginUpdate ? 'true' : undefined}
+            data-file-name={file.name}
+            key={file.name}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                window.dispatchEvent(new CustomEvent(`pterodactyl:files:ctx:${file.key}`, { detail: e.clientX }));
+            }}
+        >
+            <SelectFileCheckbox name={file.name} />
+            <Clickable file={file}>
+                <div css={tw`flex-none text-neutral-400 ml-6 mr-4 text-lg pl-3`}>
+                    {file.isFile ? (
+                        <FontAwesomeIcon
+                            icon={file.isSymlink ? faFileImport : file.isArchiveType() ? faFileArchive : faFileAlt}
+                        />
+                    ) : (
+                        <FontAwesomeIcon icon={faFolder} />
+                    )}
+                </div>
+                <div css={tw`flex-1 truncate`}>{file.name}</div>
+                {file.isFile && <div css={tw`w-1/6 text-right mr-4 hidden sm:block`}>{bytesToString(file.size)}</div>}
+                <div css={tw`w-1/5 text-right mr-4 hidden md:block`} title={file.modifiedAt.toString()}>
+                    {Math.abs(differenceInHours(file.modifiedAt, new Date())) > 48
+                        ? format(file.modifiedAt, 'MMM do, yyyy h:mma')
+                        : formatDistanceToNow(file.modifiedAt, { addSuffix: true })}
+                </div>
+            </Clickable>
+            {file.isFile && <PluginUpdateButton fileName={file.name} />}
+            <FileDropdownMenu file={file} />
+        </div>
+    );
+};
 
 export default memo(FileObjectRow, (prevProps, nextProps) => {
     /* eslint-disable @typescript-eslint/no-unused-vars */

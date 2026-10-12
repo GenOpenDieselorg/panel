@@ -11,6 +11,7 @@ use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 use Pterodactyl\Services\Telemetry\TelemetryCollectionService;
 use Pterodactyl\Console\Commands\Schedule\ProcessRunnableCommand;
 use Pterodactyl\Console\Commands\Node\SyncNodeRealDiskCommand;
+use Pterodactyl\Console\Commands\Plugins\CheckPluginUpdatesCommand;
 use Pterodactyl\Console\Commands\Backup\CloneRestoreWatchdogCommand;
 use Pterodactyl\Console\Commands\Maintenance\PruneOrphanedBackupsCommand;
 use Pterodactyl\Console\Commands\Maintenance\CleanServiceBackupFilesCommand;
@@ -43,6 +44,9 @@ class Kernel extends ConsoleKernel
 
         // Refresh the real (df-reported) disk size of each node machine for the usage monitor.
         $schedule->command(SyncNodeRealDiskCommand::class)->hourly()->withoutOverlapping();
+
+        // Look up newer versions of every server's plugins on Modrinth and SpigotMC once a day.
+        $schedule->command(CheckPluginUpdatesCommand::class)->dailyAt('04:30')->withoutOverlapping(360)->runInBackground();
 
         if (config('backups.prune_age')) {
             // Every 30 minutes, run the backup pruning command so that any abandoned backups can be deleted.
