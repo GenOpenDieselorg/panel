@@ -1,4 +1,5 @@
 import React from 'react';
+import classNames from 'classnames';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faArrowCircleUp } from '@fortawesome/free-solid-svg-icons';
 import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
@@ -18,7 +19,10 @@ export default ({ fileName }: { fileName: string }) => {
     return (
         <button
             type={'button'}
-            className={styles.plugin_update_button}
+            className={classNames(styles.plugin_update_button, {
+                [styles.source_modrinth]: plugin.source === 'modrinth',
+                [styles.source_spigot]: plugin.source === 'spigot',
+            })}
             title={`Aktualizacja ${plugin.pluginVersion} → ${plugin.latestVersion} (${sourceLabel(plugin.source)})`}
             onClick={(e) => {
                 e.stopPropagation();

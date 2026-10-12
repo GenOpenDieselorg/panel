@@ -35,7 +35,27 @@
 
 .plugin_update_button {
     @apply flex items-center gap-1.5 flex-none mr-2 px-2 py-1 rounded text-xs font-medium;
-    @apply bg-green-600 text-green-50 hover:bg-green-500 transition-colors;
+    @apply transition-colors;
+
+    /* Colour follows the download source, in each site's brand colour. */
+    &.source_modrinth {
+        @apply text-white;
+        background-color: #1bd96a;
+        color: #0b2b17;
+
+        &:hover {
+            background-color: #3ee584;
+        }
+    }
+
+    &.source_spigot {
+        @apply text-white;
+        background-color: #ed8106;
+
+        &:hover {
+            background-color: #f59a2f;
+        }
+    }
 
     & > .plugin_update_version {
         @apply truncate hidden sm:inline;
