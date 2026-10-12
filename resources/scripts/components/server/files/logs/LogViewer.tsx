@@ -156,7 +156,7 @@ export default () => {
             </div>
             <div className={'flex flex-col lg:flex-row rounded-lg overflow-hidden border border-gray-600 bg-gray-800'}>
                 <aside className={'lg:w-64 flex-none bg-gray-700 max-h-48 lg:max-h-[75vh] overflow-y-auto p-2'}>
-                    <p className={'px-2 pt-1 pb-2 text-2xs uppercase tracking-wider text-gray-400'}>Logi</p>
+                    <p className={'px-2 pt-1 pb-2 text-2xs uppercase tracking-wider text-gray-400'}>Logs</p>
                     {siblings.map((file) => (
                         <button
                             key={file.key}
@@ -181,7 +181,7 @@ export default () => {
                             <input
                                 value={query}
                                 onChange={(e) => setQuery(e.currentTarget.value)}
-                                placeholder={'Szukaj w logu...'}
+                                placeholder={'Search this log...'}
                                 className={
                                     'w-full rounded bg-gray-600 border border-gray-500 px-3 py-2 pr-8 text-sm text-gray-100 placeholder-gray-400 focus:outline-none focus:border-blue-400'
                                 }
@@ -203,9 +203,9 @@ export default () => {
                             onChange={(e) => setFilter(e.currentTarget.value as Filter)}
                             className={'rounded bg-gray-600 border border-gray-500 px-3 py-2 text-sm text-gray-100'}
                         >
-                            <option value={'all'}>Wszystkie linie</option>
-                            <option value={'problems'}>Ostrzeżenia i błędy ({counts.errors + counts.warnings})</option>
-                            <option value={'errors'}>Tylko błędy ({counts.errors})</option>
+                            <option value={'all'}>All lines</option>
+                            <option value={'problems'}>Warnings and errors ({counts.errors + counts.warnings})</option>
+                            <option value={'errors'}>Errors only ({counts.errors})</option>
                         </select>
                         <button
                             type={'button'}
@@ -214,7 +214,7 @@ export default () => {
                                 'rounded border border-gray-500 px-3 py-2 text-xs uppercase text-gray-200 hover:bg-gray-600'
                             }
                         >
-                            <FontAwesomeIcon icon={faSyncAlt} className={'mr-1'} /> Odśwież
+                            <FontAwesomeIcon icon={faSyncAlt} className={'mr-1'} /> Refresh
                         </button>
                         <button
                             type={'button'}
@@ -223,7 +223,7 @@ export default () => {
                                 'rounded border border-gray-500 px-3 py-2 text-xs uppercase text-gray-200 hover:bg-gray-600'
                             }
                         >
-                            <FontAwesomeIcon icon={faDownload} className={'mr-1'} /> Pobierz
+                            <FontAwesomeIcon icon={faDownload} className={'mr-1'} /> Download
                         </button>
                         <button
                             type={'button'}
@@ -232,15 +232,15 @@ export default () => {
                                 'rounded border border-gray-500 px-3 py-2 text-xs uppercase text-gray-200 hover:bg-gray-600'
                             }
                         >
-                            <FontAwesomeIcon icon={faArrowDown} className={'mr-1'} /> Koniec
+                            <FontAwesomeIcon icon={faArrowDown} className={'mr-1'} /> Bottom
                         </button>
                     </div>
                     <div className={'flex gap-4 px-3 py-1.5 text-xs bg-gray-800 border-b border-gray-700'}>
-                        <span className={'text-gray-400'}>{lines?.length ?? 0} linii</span>
-                        <span className={'text-red-400'}>{counts.errors} błędów</span>
-                        <span className={'text-yellow-300'}>{counts.warnings} ostrzeżeń</span>
+                        <span className={'text-gray-400'}>{lines?.length ?? 0} lines</span>
+                        <span className={'text-red-400'}>{counts.errors} errors</span>
+                        <span className={'text-yellow-300'}>{counts.warnings} warnings</span>
                         {(pattern || filter !== 'all') && (
-                            <span className={'text-gray-400'}>{visible.length} pokazanych</span>
+                            <span className={'text-gray-400'}>{visible.length} shown</span>
                         )}
                     </div>
                     {error ? (

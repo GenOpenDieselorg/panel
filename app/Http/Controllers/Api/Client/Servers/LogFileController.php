@@ -41,18 +41,18 @@ class LogFileController extends ClientApiController
         try {
             $contents = $this->fileRepository->setServer($server)->getContent($file, self::MAX_FILE_BYTES);
         } catch (FileSizeTooLargeException) {
-            throw new DisplayException('Plik logu jest większy niż 10 MB — pobierz go zamiast otwierać.');
+            throw new DisplayException('This log is larger than 10 MB. Download it instead.');
         }
 
         if (strlen($contents) > self::MAX_FILE_BYTES) {
-            throw new DisplayException('Plik logu jest większy niż 10 MB — pobierz go zamiast otwierać.');
+            throw new DisplayException('This log is larger than 10 MB. Download it instead.');
         }
 
         if (str_ends_with(strtolower($file), '.gz')) {
             $unpacked = @gzdecode($contents, self::MAX_UNPACKED_BYTES);
 
             if ($unpacked === false) {
-                throw new DisplayException('Nie udało się rozpakować pliku (uszkodzony albo po rozpakowaniu większy niż 64 MB).');
+                throw new DisplayException('Could not unpack this file. It is either corrupt or larger than 64 MB once unpacked.');
             }
 
             $contents = $unpacked;
