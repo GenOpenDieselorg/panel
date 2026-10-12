@@ -25,6 +25,10 @@ const GAME_VERSION_KEY = (uuid: string) => `pterodactyl:plugin-store:mc:${uuid}`
 const formatDownloads = (count: number): string =>
     count >= 1e6 ? `${(count / 1e6).toFixed(1)}M` : count >= 1e3 ? `${Math.round(count / 1e3)}k` : String(count);
 
+// Modrinth lists every supported version, so a long list is shown as its first-to-last range.
+const formatGameVersions = (versions: string[]): string =>
+    versions.length > 4 ? `${versions[0]} – ${versions[versions.length - 1]}` : versions.join(', ');
+
 const CompatBadge = ({ compatible, gameVersion }: { compatible: boolean | null; gameVersion: string }) => {
     if (!gameVersion) return null;
 
@@ -35,7 +39,9 @@ const CompatBadge = ({ compatible, gameVersion }: { compatible: boolean | null; 
     }
 
     return compatible ? (
-        <span className={'text-2xs rounded px-1.5 py-0.5 bg-green-600 text-green-50'}>{gameVersion}</span>
+        <span className={'text-2xs rounded px-1.5 py-0.5 bg-green-600 text-green-50 whitespace-nowrap'}>
+            ✓ {gameVersion}
+        </span>
     ) : (
         <span className={'text-2xs rounded px-1.5 py-0.5 bg-yellow-600 text-yellow-50'}>
             not tested on {gameVersion}
@@ -236,9 +242,15 @@ export default ({ open, onClose, onInstalled }: { open: boolean; onClose: () => 
                                                 <p className={'text-2xs text-gray-400 truncate'}>
                                                     {version.publishedAt && format(version.publishedAt, 'dd-MM-yyyy')}
                                                     {version.gameVersions.length > 0 &&
-                                                        ` · MC ${version.gameVersions.slice(-6).join(', ')}`}
+                                                        ` · MC ${formatGameVersions(version.gameVersions)}`}
                                                 </p>
                                             </div>
+                                            {selected.source === 'modrinth' && gameVersion && (
+                                                <CompatBadge
+                                                    compatible={version.gameVersions.includes(gameVersion.trim())}
+                                                    gameVersion={gameVersion.trim()}
+                                                />
+                                            )}
                                             {selected.source === 'spigot' && (
                                                 <CompatBadge
                                                     compatible={version.compatible}
