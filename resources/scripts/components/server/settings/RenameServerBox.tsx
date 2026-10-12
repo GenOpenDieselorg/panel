@@ -50,7 +50,7 @@ export default () => {
     const submit = ({ name, description }: Values, { setSubmitting }: FormikHelpers<Values>) => {
         clearFlashes('settings');
         renameServer(server.uuid, name, description)
-            .then(() => setServer({ ...server, name, description }))
+            .then(() => setServer({ ...server, name: server.nickname || name, originalName: name, description }))
             .catch((error) => {
                 console.error(error);
                 addError({ key: 'settings', message: httpErrorToHuman(error) });
@@ -62,7 +62,7 @@ export default () => {
         <Formik
             onSubmit={submit}
             initialValues={{
-                name: server.name,
+                name: server.originalName,
                 description: server.description,
             }}
             validationSchema={object().shape({

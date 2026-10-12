@@ -10,11 +10,11 @@ import StatGraphs from '@/components/server/console/StatGraphs';
 import PowerButtons from '@/components/server/console/PowerButtons';
 import ServerDetailsBlock from '@/components/server/console/ServerDetailsBlock';
 import { Alert } from '@/components/elements/alert';
+import ServerNameHeading from '@/components/server/console/ServerNameHeading';
 
 export type PowerAction = 'start' | 'stop' | 'restart' | 'kill';
 
 const ServerConsoleContainer = () => {
-    const name = ServerContext.useStoreState((state) => state.server.data!.name);
     const description = ServerContext.useStoreState((state) => state.server.data!.description);
     const isInstalling = ServerContext.useStoreState((state) => state.server.isInstalling);
     const isTransferring = ServerContext.useStoreState((state) => state.server.data!.isTransferring);
@@ -34,9 +34,7 @@ const ServerConsoleContainer = () => {
             )}
             <div className={'grid grid-cols-4 gap-4 mb-4'}>
                 <div className={'hidden sm:block sm:col-span-2 lg:col-span-3 pr-4'}>
-                    <h1 className={'font-header font-medium text-2xl text-gray-50 leading-relaxed line-clamp-1'}>
-                        {name}
-                    </h1>
+                    <ServerNameHeading />
                     <p className={'text-sm line-clamp-2'}>{description}</p>
                 </div>
                 <div className={'col-span-4 sm:col-span-2 lg:col-span-1 self-end'}>

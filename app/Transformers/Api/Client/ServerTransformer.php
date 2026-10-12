@@ -5,6 +5,7 @@ namespace Pterodactyl\Transformers\Api\Client;
 use Pterodactyl\Models\Egg;
 use Pterodactyl\Models\Server;
 use Pterodactyl\Models\Subuser;
+use Pterodactyl\Models\ServerNickname;
 use League\Fractal\Resource\Item;
 use Pterodactyl\Models\Allocation;
 use Pterodactyl\Models\Permission;
@@ -21,6 +22,14 @@ class ServerTransformer extends BaseClientTransformer
 
     protected array $availableIncludes = ['egg', 'subusers'];
 
+    /**
+     * The requesting user's server nicknames, loaded once per transformer so a server list
+     * does not query them per server.
+     *
+     * @var array<int, string>|null
+     */
+    private ?array $nicknames = null;
+
     public function getResourceName(): string
     {
         return Server::RESOURCE_NAME;
@@ -30,6 +39,13 @@ class ServerTransformer extends BaseClientTransformer
      * Transform a server model into a representation that can be returned
      * to a client.
      */
+    private function nicknameFor(int $userId, Server $server): ?string
+    {
+        $this->nicknames ??= ServerNickname::query()->where('user_id', $userId)->pluck('name', 'server_id')->all();
+
+        return $this->nicknames[$server->id] ?? null;
+    }
+
     public function transform(Server $server): array
     {
         /** @var StartupCommandService $service */
@@ -49,7 +65,10 @@ class ServerTransformer extends BaseClientTransformer
             'server_identifier' => $server->identifier,
             'internal_id' => $server->id,
             'uuid' => $server->uuid,
-            'name' => $server->name,
+            // A user's private nickname replaces the name everywhere in their own view.
+            'name' => $this->nicknameFor($user->id, $server) ?? $server->name,
+            'original_name' => $server->name,
+            'nickname' => $this->nicknameFor($user->id, $server),
             'node' => $server->node->name,
             'is_node_under_maintenance' => $server->node->isUnderMaintenance(),
             'sftp_details' => [
