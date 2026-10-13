@@ -30,6 +30,7 @@ const STATUS_LABELS: Record<PluginUpdateStatus, string> = {
     not_found: 'This plugin (with this version) was not found on Modrinth or SpigotMC.',
     not_downloadable: 'Plugin found, but it cannot be downloaded automatically (premium or external link).',
     ignored: 'This plugin is on the global blacklist and is not checked.',
+    custom: 'Custom build by genallthebest: never updated automatically.',
     unreadable: 'Could not read plugin.yml from this file.',
     error: 'The check failed.',
 };

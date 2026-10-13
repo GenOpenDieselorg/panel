@@ -99,6 +99,10 @@ class PluginSourceResolver
             return $this->result(ServerPlugin::STATUS_IGNORED);
         }
 
+        if ($plugin->isCustomBuild()) {
+            return $this->result(ServerPlugin::STATUS_CUSTOM);
+        }
+
         $key = implode('|', [
             $rule?->id, $rule?->updated_at?->timestamp, $plugin->plugin_platform, $plugin->plugin_key,
             $plugin->plugin_version, $hashVersion['id'] ?? null,

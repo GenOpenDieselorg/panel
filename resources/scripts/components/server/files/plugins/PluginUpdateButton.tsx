@@ -1,18 +1,32 @@
 import React from 'react';
 import classNames from 'classnames';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faArrowCircleUp, faBan } from '@fortawesome/free-solid-svg-icons';
+import { faArrowCircleUp, faBan, faTimes } from '@fortawesome/free-solid-svg-icons';
 import { usePluginUpdates } from '@/components/server/files/plugins/PluginUpdatesContext';
 import { sourceLabel } from '@/components/server/files/plugins/PluginUpdateModal';
 import { useStoreState } from '@/state/hooks';
 import styles from '../style.module.css';
 
-// Shown beside a plugin jar when the daily check found a newer downloadable version.
+// Shown beside a plugin jar when the daily check found a newer downloadable version, or a
+// yellow X for our own custom builds, which are never auto-updated.
 // On wide screens it sits in the gutter to the left of the row, otherwise inside the row.
 export default ({ fileName }: { fileName: string }) => {
     const { enabled, byFile, open, blacklist } = usePluginUpdates();
     const rootAdmin = useStoreState((state) => state.user.data!.rootAdmin);
     const plugin = enabled ? byFile.get(fileName) : undefined;
+
+    if (plugin?.status === 'custom') {
+        return (
+            <div className={styles.plugin_update_actions}>
+                <span
+                    className={styles.plugin_custom_marker}
+                    title={'Custom build by genallthebest: not updated automatically'}
+                >
+                    <FontAwesomeIcon icon={faTimes} />
+                </span>
+            </div>
+        );
+    }
 
     if (!plugin || plugin.status !== 'update_available') {
         return null;

@@ -39,8 +39,12 @@ class ServerPlugin extends EloquentModel
     public const STATUS_NOT_FOUND = 'not_found';
     public const STATUS_NOT_DOWNLOADABLE = 'not_downloadable';
     public const STATUS_IGNORED = 'ignored';
+    // Our own builds (genallthebest in the plugin.yml authors): never updated from upstream.
+    public const STATUS_CUSTOM = 'custom';
     public const STATUS_UNREADABLE = 'unreadable';
     public const STATUS_ERROR = 'error';
+
+    public const CUSTOM_AUTHOR = 'genallthebest';
 
     protected $table = 'server_plugins';
 
@@ -52,6 +56,20 @@ class ServerPlugin extends EloquentModel
         'latest_game_versions' => 'array',
         'checked_at' => 'datetime',
     ];
+
+    /**
+     * Whether the jar is one of our own builds, by the authors declared in plugin.yml.
+     */
+    public function isCustomBuild(): bool
+    {
+        foreach ($this->plugin_authors ?? [] as $author) {
+            if (stripos($author, self::CUSTOM_AUTHOR) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     public function server(): BelongsTo
     {

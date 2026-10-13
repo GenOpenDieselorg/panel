@@ -7,6 +7,7 @@ export type PluginUpdateStatus =
     | 'not_found'
     | 'not_downloadable'
     | 'ignored'
+    | 'custom'
     | 'unreadable'
     | 'error';
 
